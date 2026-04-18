@@ -8,7 +8,6 @@ Included:
 - custom ASTRO-FANET module
 - simulation scenario and helper scripts
 - NetAnim source tree
-- LaTeX paper sources
 
 Excluded from version control:
 
