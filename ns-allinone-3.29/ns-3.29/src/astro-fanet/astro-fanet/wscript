@@ -1,0 +1,31 @@
+## -*- Mode: python; py-indent-offset: 4; indent-tabs-mode: nil; coding: utf-8; -*-
+
+def build(bld):
+    module = bld.create_ns3_module('astro-fanet', ['internet', 'wifi', 'mobility', 'energy', 'aodv', 'olsr', 'applications', 'flow-monitor', 'stats'])
+    module.includes = '.'
+    module.source = [
+        'model/astro-routing-protocol.cc',
+        'model/a3d-bsm.cc',
+        'model/slm-emulator.cc',
+        'model/mappo-agent.cc',
+        'model/trust-manager.cc',
+        'model/astro-packet.cc',
+        'model/rpgm-mobility-model.cc',
+        'helper/astro-helper.cc',
+        ]
+
+    headers = bld(features='ns3header')
+    headers.module = 'astro-fanet'
+    headers.source = [
+        'model/astro-routing-protocol.h',
+        'model/a3d-bsm.h',
+        'model/slm-emulator.h',
+        'model/mappo-agent.h',
+        'model/trust-manager.h',
+        'model/astro-packet.h',
+        'model/rpgm-mobility-model.h',
+        'helper/astro-helper.h',
+        ]
+
+    if (bld.env['ENABLE_EXAMPLES']):
+        bld.recurse('examples')
