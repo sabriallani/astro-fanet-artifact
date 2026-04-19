@@ -68,7 +68,7 @@ AstroRoutingProtocol::AstroRoutingProtocol ()
 {
   std::memset (m_queueSizes, 0, sizeof (m_queueSizes));
 
-  // Create layer components
+  // Create ns-3 integration components
   m_mappoAgent = CreateObject<MappoAgent> ();
   m_a3dBsm = CreateObject<A3dBsm> ();
   m_trustManager = CreateObject<TrustManager> ();
@@ -84,19 +84,25 @@ AstroRoutingProtocol::DoInitialize (void)
   m_nodeId = GetObject<Node> ()->GetId ();
   m_mappoAgent->SetNodeId (m_nodeId);
 
-  // Initialize SLM emulator if not provided externally
+  // Initialize legacy context emulator if not provided externally.
   if (!m_slmEmulator)
     {
       m_slmEmulator = CreateObject<SlmEmulator> ();
-      m_slmEmulator->GenerateSyntheticEmbeddings (50000, 42 + m_nodeId);
+      m_slmEmulator->GenerateSyntheticEmbeddings (1000, 42 + m_nodeId);
     }
 
-  // Set A3D-BSM parameters from the paper
+  // Set A3D-BSM parameters from the paper appendix.
   m_a3dBsm->SetRmax (400.0);   // Communication range from Table 2
-  m_a3dBsm->SetAmin (80.0);    // 0.2 * R_max
+  m_a3dBsm->SetAmin (100.0);   // kappa_min * R_max = 0.25 * 400m
   m_a3dBsm->SetAmax (400.0);   // R_max
+  m_a3dBsm->SetDensityReference (12.0);
+  m_a3dBsm->SetMobilityGradientReference (25.0);
+  m_a3dBsm->SetHopReference (6.0);
+  m_a3dBsm->SetDensityThreshold (3.0);
+  m_a3dBsm->SetAngularThreshold (M_PI / 3.0);
+  m_a3dBsm->SetSuppressionThreshold (0.55);
 
-  // Set reward weights from Section 4.2
+  // Legacy route-selection weights retained for scaffold compatibility.
   m_mappoAgent->SetRewardWeights (1.0, 0.5, 0.3, 0.8, 0.4, 0.6);
 
   // Start beaconing and decision cycle with random jitter
@@ -211,7 +217,7 @@ AstroRoutingProtocol::RouteOutput (Ptr<Packet> p, const Ipv4Header &header,
         }
     }
 
-  // Step 2: Use MAPPO agent to select next hop (Layer 2 policy)
+  // Step 2: use the legacy route-selection helper to select next hop.
   if (!m_neighborTable.empty ())
     {
       auto neighbors = BuildNeighborInfoVector ();
@@ -238,7 +244,7 @@ AstroRoutingProtocol::RouteOutput (Ptr<Packet> p, const Ipv4Header &header,
     }
 
   // Step 3: Geographic greedy fallback — forward to neighbor closest to sink
-  // When MAPPO weights are untrained (random init), this ensures basic
+  // When helper weights are untrained (random init), this ensures basic
   // packet delivery via greedy geographic forwarding toward the sink.
   // With trained weights, Step 2 will typically succeed and this is bypassed.
   if (!m_neighborTable.empty () && dst == m_sinkAddress)
@@ -384,7 +390,7 @@ AstroRoutingProtocol::RouteInput (Ptr<const Packet> p, const Ipv4Header &header,
       return true;
     }
 
-  // Unicast forwarding via MAPPO policy
+  // Unicast forwarding via the legacy route-selection helper.
   if (!m_neighborTable.empty ())
     {
       // Byzantine selective dropping
@@ -515,7 +521,7 @@ AstroRoutingProtocol::SendBeacon ()
   // (action and next hop are updated after each decision cycle)
   beacon.SetAction (ACTION_FORWARD);  // Updated in ExecuteDecisionCycle
 
-  // Compress and set SLM embedding for pointer network
+  // Compress and set legacy context field for scaffold compatibility.
   auto compressed = m_slmEmulator->Compress (m_currentEmbedding);
   beacon.SetCompressedEmbedding (compressed);
 
@@ -553,7 +559,7 @@ AstroRoutingProtocol::HandleBeacon (Ptr<Socket> socket)
       if (senderId == m_nodeId)
         continue;  // Ignore own beacons
 
-      // Layer 4: Verify HMAC (Algorithm 1, line 3)
+      // Verify HMAC-style authentication.
       if (!m_trustManager->VerifyHmac (beacon))
         {
           NS_LOG_WARN ("Node " << m_nodeId << ": HMAC verification failed for node " << senderId);
@@ -572,7 +578,7 @@ AstroRoutingProtocol::HandleBeacon (Ptr<Socket> socket)
       // Record new intent
       m_trustManager->RecordIntent (senderId, beacon);
 
-      // Skip untrusted neighbors (Algorithm 1, lines 5-7)
+      // Skip untrusted neighbors.
       if (m_trustManager->IsUntrusted (senderId))
         {
           NS_LOG_DEBUG ("Node " << m_nodeId << ": ignoring untrusted neighbor " << senderId);
@@ -599,7 +605,7 @@ AstroRoutingProtocol::HandleBeacon (Ptr<Socket> socket)
 }
 
 // ========================================================================
-// Decision cycle (Algorithm 1)
+// Decision cycle
 // ========================================================================
 
 void
@@ -608,11 +614,11 @@ AstroRoutingProtocol::ExecuteDecisionCycle ()
   // Step 1: Purge expired neighbors
   PurgeNeighborTable ();
 
-  // Step 2: Layer 1 - SLM encoding (Algorithm 1, lines 10-14)
+  // Step 2: update legacy context vector used by the scaffold.
   RawStateVector rawState = BuildRawState ();
   m_currentEmbedding = m_slmEmulator->Encode (rawState);
 
-  // Step 3: Layer 2 - MAPPO decision (Algorithm 1, lines 15-16)
+  // Step 3: route-selection helper decision.
   auto neighbors = BuildNeighborInfoVector ();
   auto aggregatedIntent = AggregateNeighborIntents ();
 
@@ -623,14 +629,14 @@ AstroRoutingProtocol::ExecuteDecisionCycle ()
   PolicyAction action = m_mappoAgent->SelectAction (
     m_currentEmbedding, aggregatedIntent, neighbors, m_currentRole, headOfLineTc);
 
-  // Step 4: Layer 3 - A3D-BSM override check (Algorithm 1, lines 17-19)
+  // Step 4: A3D-BSM override check.
   if (action.action == ACTION_SUPPRESS && headOfLineTc == EMERGENCY)
     {
       action.action = ACTION_BROADCAST;
       NS_LOG_DEBUG ("Node " << m_nodeId << ": Emergency override, switching to broadcast");
     }
 
-  // Step 5: Execute action (Algorithm 1, line 20)
+  // Step 5: execute action.
   ExecuteAction (action);
 
   // Step 6: Compute and accumulate reward for logging
@@ -772,7 +778,7 @@ AstroRoutingProtocol::BuildRawState () const
 std::vector<float>
 AstroRoutingProtocol::AggregateNeighborIntents () const
 {
-  // Mean-pooling of trusted neighbor intents (Algorithm 1, line 13)
+  // Mean-pooling of trusted neighbor intents.
   std::vector<float> aggregated (INTENT_DIM, 0.0f);
   uint32_t trustedCount = 0;
 

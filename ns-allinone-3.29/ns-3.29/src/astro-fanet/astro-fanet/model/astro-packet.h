@@ -1,6 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
- * ASTRO-FANET: MAPPO-Based Routing with Adaptive 3D Broadcast Suppression
+ * ASTRO-FANET/A3D-BSM ns-3 packet definitions
  * Packet definitions for intent exchange and control signaling
  */
 #ifndef ASTRO_PACKET_H
@@ -59,17 +59,19 @@ enum MissionRole : uint8_t
 };
 
 // --------------------------------------------------------------------------
-// Intent vector dimension (d_iota = 16, total overhead = 2*16+32 = 64 bytes)
+// Intent vector dimension used by the executable scaffold. The paper-level
+// coordination overhead is 16 bytes of quantized intent plus a 32-byte HMAC.
 // --------------------------------------------------------------------------
 static const uint32_t INTENT_DIM = 16;
 static const uint32_t EMBEDDING_DIM = 256;  // d_z from the paper
-static const uint32_t COMPRESSED_EMBED_DIM = 16;  // d_iota for piggybacked embedding
+static const uint32_t COMPRESSED_EMBED_DIM = 16;  // legacy scaffold context field
 static const uint32_t HMAC_SIZE = 32;  // SHA-256 HMAC
-static const uint32_t INTENT_OVERHEAD = 2 * INTENT_DIM + HMAC_SIZE;  // 64 bytes
+static const uint32_t INTENT_VECTOR_BYTES = 16;
+static const uint32_t INTENT_OVERHEAD = INTENT_VECTOR_BYTES + HMAC_SIZE;  // 48 bytes
 
 // --------------------------------------------------------------------------
-// ASTRO Beacon Header: carries intent vector + compressed embedding + HMAC
-// Piggybacked on periodic beacons (Section 3.5)
+// ASTRO Beacon Header: carries intent/security fields plus simulator state
+// needed by the executable ns-3 scaffold.
 // --------------------------------------------------------------------------
 class AstroBeaconHeader : public Header
 {
@@ -123,7 +125,7 @@ public:
   void SetTrustScore (double t) { m_trustScore = t; }
   double GetTrustScore (void) const { return m_trustScore; }
 
-  // Compressed SLM embedding (first COMPRESSED_EMBED_DIM values)
+  // Legacy compressed context field retained for scaffold compatibility
   void SetCompressedEmbedding (const std::vector<float> &emb);
   std::vector<float> GetCompressedEmbedding (void) const;
 

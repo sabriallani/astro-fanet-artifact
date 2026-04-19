@@ -7,6 +7,7 @@ auto-results/
 results/
 visual-results/
 video-demo/
+paper-check-a3d/
 
 .lock-*
 .waf*
@@ -17,4 +18,3 @@ moc_predefs.h
 
 *.o
 NetAnim
-

@@ -51,8 +51,8 @@ AstroBeaconHeader::GetInstanceTypeId (void) const
 uint32_t
 AstroBeaconHeader::GetSerializedSize (void) const
 {
-  // action(1) + nextHop(4) + role(1) + suppression(8) + nodeId(4) + timestamp(8)
-  // + pos(24) + vel(24) + energy(8) + trust(8) + embedding(COMPRESSED_EMBED_DIM*4) + hmac(32)
+  // Full simulator beacon: intent/security fields plus state used by ns-3.
+  // INTENT_OVERHEAD tracks only the paper-level intent-plus-HMAC component.
   return 1 + 4 + 1 + 8 + 4 + 8 + 24 + 24 + 8 + 8 + COMPRESSED_EMBED_DIM * 4 + HMAC_SIZE;
 }
 
@@ -78,7 +78,7 @@ AstroBeaconHeader::Serialize (Buffer::Iterator start) const
       start.WriteHtonU64 (tmp);
     }
 
-  // Compressed embedding
+  // Legacy compressed context field
   for (uint32_t i = 0; i < COMPRESSED_EMBED_DIM; i++)
     {
       uint32_t ftmp;

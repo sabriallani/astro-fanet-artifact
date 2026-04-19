@@ -2,7 +2,6 @@
 #include "a3d-bsm.h"
 #include "ns3/log.h"
 #include <cmath>
-#include <random>
 #include <algorithm>
 
 namespace ns3 {
@@ -10,6 +9,21 @@ namespace astro {
 
 NS_LOG_COMPONENT_DEFINE ("A3dBsm");
 NS_OBJECT_ENSURE_REGISTERED (A3dBsm);
+
+namespace {
+
+const double W_XI[3][5] = {
+  {0.85, -0.30, 0.65, -0.70, -0.35},
+  {0.85, -0.30, 0.65, -0.70, -0.35},
+  {0.55, -0.20, 0.40, -0.55, -0.25}
+};
+
+const double B_XI[3] = {-0.35, -0.35, -0.65};
+const double W_SIGMA[6] = {0.95, 0.35, 0.65, 0.80, 0.45, 0.55};
+const double B_SIGMA = -1.45;
+const double PRIORITY_MAX = 4.0;
+
+} // anonymous namespace
 
 TypeId
 A3dBsm::GetTypeId (void)
@@ -23,15 +37,17 @@ A3dBsm::GetTypeId (void)
 
 A3dBsm::A3dBsm ()
   : m_Rmax (400.0),         // Table 2
-    m_aMin (0.2 * 400.0),   // = 80m (Eq. 8)
+    m_aMin (0.25 * 400.0),  // kappa_min * R_max = 100m
     m_aMax (400.0),          // = R_max (Eq. 8)
-    m_rhoTh (3.0),           // Density threshold
-    m_thetaTh (M_PI / 4.0),  // 45 degrees angular threshold
-    m_sigmaTh (0.5),          // Suppression score threshold
+    m_rhoRef (12.0),         // Trusted-neighbor normalization reference
+    m_gRef (25.0),           // Mobility-gradient normalization reference (m/s)
+    m_hMax (6.0),            // Hop-count normalization reference
+    m_rhoTh (3.0),           // Trusted-neighbor threshold
+    m_thetaTh (M_PI / 3.0),  // 60 degrees angular threshold
+    m_sigmaTh (0.55),        // Suppression score threshold
     m_totalBroadcasts (0),
     m_suppressedBroadcasts (0)
 {
-  InitializeWeights ();
 }
 
 A3dBsm::~A3dBsm ()
@@ -44,38 +60,67 @@ A3dBsm::Sigmoid (double x) const
   return 1.0 / (1.0 + std::exp (-x));
 }
 
-void
-A3dBsm::InitializeWeights ()
+double
+A3dBsm::Clamp01 (double value) const
 {
-  // Initialize W_z (3 x EMBEDDING_DIM) with pseudo-random values
-  // In deployment, these would be loaded from trained model
-  std::mt19937 rng (12345);
-  std::normal_distribution<float> dist (0.0f, 0.1f);
+  return std::max (0.0, std::min (1.0, value));
+}
 
-  m_Wz.resize (3, std::vector<float>(EMBEDDING_DIM, 0.0f));
-  for (uint32_t i = 0; i < 3; i++)
-    for (uint32_t j = 0; j < EMBEDDING_DIM; j++)
-      m_Wz[i][j] = dist (rng);
+double
+A3dBsm::Norm (const Vector3D &v) const
+{
+  return std::sqrt (v.x * v.x + v.y * v.y + v.z * v.z);
+}
 
-  // Initialize w_sigma for suppression scoring
-  // Input: [embedding || broadcast_features || density || mobility_gradient]
-  uint32_t sigmaInputDim = EMBEDDING_DIM + 4 + 1 + 3;  // 264
-  m_wSigma.resize (sigmaInputDim, 0.0f);
-  for (auto &w : m_wSigma)
-    w = dist (rng);
+double
+A3dBsm::EstimateChannelOccupancy (double localDensity) const
+{
+  // The demo artifact does not expose a PHY idle/busy trace at this layer.
+  // Use a bounded local-load proxy so chi_i remains deterministic and auditable.
+  return Clamp01 (localDensity / m_rhoRef);
+}
+
+std::array<double, 5>
+A3dBsm::BuildContext (double localDensity,
+                      const Vector3D &mobilityGradient,
+                      const std::vector<double> &broadcastFeatures) const
+{
+  double priority = broadcastFeatures.size () > 0 ? broadcastFeatures[0] : 1.0;
+  double hopCount = broadcastFeatures.size () > 2 ? broadcastFeatures[2] : 0.0;
+
+  return {
+    Clamp01 (localDensity / m_rhoRef),
+    Clamp01 (Norm (mobilityGradient) / m_gRef),
+    EstimateChannelOccupancy (localDensity),
+    Clamp01 (priority / PRIORITY_MAX),
+    Clamp01 (hopCount / m_hMax)
+  };
 }
 
 Vector3D
 A3dBsm::ComputeSuppressionZone (const std::vector<float> &embedding) const
 {
-  // Eq. 8: [a(t), b(t), c(t)]^T = a_min + sigmoid(W_z * z_i(t)) * (a_max - a_min)
+  (void) embedding;
+  std::vector<double> neutralFeatures = {1.0, 0.0, 0.0, 0.0};
+  return ComputeSuppressionZone (0.0, Vector3D (0.0, 0.0, 0.0), neutralFeatures);
+}
+
+Vector3D
+A3dBsm::ComputeSuppressionZone (double localDensity,
+                                const Vector3D &mobilityGradient,
+                                const std::vector<double> &broadcastFeatures) const
+{
+  // Paper appendix: [a,b,c]^T = a_min + sigmoid(W_xi * xi_i + b_xi) * (a_max - a_min)
+  auto xi = BuildContext (localDensity, mobilityGradient, broadcastFeatures);
   double axes[3] = {0.0, 0.0, 0.0};
 
   for (uint32_t i = 0; i < 3; i++)
     {
-      double dot = 0.0;
-      for (uint32_t j = 0; j < EMBEDDING_DIM && j < embedding.size (); j++)
-        dot += m_Wz[i][j] * embedding[j];
+      double dot = B_XI[i];
+      for (uint32_t j = 0; j < xi.size (); j++)
+        {
+          dot += W_XI[i][j] * xi[j];
+        }
 
       axes[i] = m_aMin + Sigmoid (dot) * (m_aMax - m_aMin);
     }
@@ -140,36 +185,35 @@ A3dBsm::ComputeSuppressionScore (const std::vector<float> &embedding,
                                   double localDensity,
                                   const Vector3D &mobilityGradient) const
 {
-  // Eq. 9 (suppression): sigma_i(t) = w_sigma^T [z_i(t) || f_B || rho_local || nabla v_i]
-  std::vector<double> input;
-  input.reserve (EMBEDDING_DIM + 4 + 1 + 3);
+  (void) embedding;
+  return ComputeSuppressionScore (broadcastFeatures, localDensity, mobilityGradient);
+}
 
-  // Embedding
-  for (uint32_t i = 0; i < EMBEDDING_DIM && i < embedding.size (); i++)
-    input.push_back (static_cast<double>(embedding[i]));
-  while (input.size () < EMBEDDING_DIM)
-    input.push_back (0.0);
+double
+A3dBsm::ComputeSuppressionScore (const std::vector<double> &broadcastFeatures,
+                                  double localDensity,
+                                  const Vector3D &mobilityGradient) const
+{
+  auto xi = BuildContext (localDensity, mobilityGradient, broadcastFeatures);
+  double distance = broadcastFeatures.size () > 3 ? broadcastFeatures[3] : 0.0;
+  double distanceNorm = Clamp01 (distance / m_Rmax);
 
-  // Broadcast features: [priority, age, hop count, distance_to_origin]
-  for (const auto &f : broadcastFeatures)
-    input.push_back (f);
-  while (input.size () < EMBEDDING_DIM + 4)
-    input.push_back (0.0);
+  double psi[6] = {
+    xi[0],
+    1.0 - xi[1],
+    xi[2],
+    1.0 - xi[3],
+    1.0 - xi[4],
+    1.0 - distanceNorm
+  };
 
-  // Local density
-  input.push_back (localDensity);
+  double score = B_SIGMA;
+  for (uint32_t i = 0; i < 6; i++)
+    {
+      score += W_SIGMA[i] * psi[i];
+    }
 
-  // Mobility gradient
-  input.push_back (mobilityGradient.x);
-  input.push_back (mobilityGradient.y);
-  input.push_back (mobilityGradient.z);
-
-  // Dot product with learned weights
-  double score = 0.0;
-  for (uint32_t i = 0; i < input.size () && i < m_wSigma.size (); i++)
-    score += input[i] * m_wSigma[i];
-
-  return score;
+  return Sigmoid (score);
 }
 
 AstroAction
@@ -192,8 +236,8 @@ A3dBsm::DecideRebroadcast (TrafficClass trafficClass,
       return ACTION_BROADCAST;
     }
 
-  // Compute suppression zone
-  Vector3D semiAxes = ComputeSuppressionZone (embedding);
+  // Compute suppression zone using the fixed offline-calibrated context head.
+  Vector3D semiAxes = ComputeSuppressionZone (localDensity, mobilityGradient, broadcastFeatures);
 
   // Rule 2: If outside suppression zone, broadcast
   if (!IsInsideZone (currentPos, originPos, semiAxes))
@@ -212,6 +256,7 @@ A3dBsm::DecideRebroadcast (TrafficClass trafficClass,
   // Rule 3: Suppress if inside zone AND dense enough AND low angular diversity AND high score
   if (localDensity >= m_rhoTh && theta <= m_thetaTh && sigma > m_sigmaTh)
     {
+      m_suppressedBroadcasts++;
       NS_LOG_DEBUG ("Suppressed: density=" << localDensity
                     << " theta=" << theta << " sigma=" << sigma);
       return ACTION_SUPPRESS;

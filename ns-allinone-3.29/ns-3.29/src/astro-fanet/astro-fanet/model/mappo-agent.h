@@ -1,10 +1,10 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
- * ASTRO-FANET: MAPPO Agent (Layer 2)
- * Implements Section 3.2 (MARL Policy Network)
+ * ASTRO-FANET legacy route-selection helper.
  *
- * The MAPPO policy is trained offline (CTDE paradigm) and deployed as frozen weights.
- * At runtime, only the actor network pi_psi_i(a_i | o_i) is used.
+ * This class is retained by the executable ns-3 scaffold for next-hop
+ * selection compatibility. It is not used to calibrate the A3D-BSM
+ * suppression rule described in the current manuscript.
  *
  * Architecture:
  * - Actor: 2-layer MLP [256, 128] with pointer network head for neighbor selection
@@ -54,10 +54,10 @@ struct PolicyAction
 };
 
 /**
- * \brief MAPPO actor network for decentralized routing decisions
+ * \brief Legacy MLP helper for decentralized route-selection decisions
  *
- * Implements the actor pi_psi_i from the CTDE-trained MAPPO policy.
- * The critic is discarded after training (Proposition 1).
+ * Retained for compatibility with the older executable scaffold. The current
+ * A3D-BSM paper does not rely on this helper for suppression calibration.
  */
 class MappoAgent : public Object
 {

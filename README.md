@@ -1,27 +1,27 @@
-# ASTRO-FANET
+# A3D-BSM ns-3 Artifact
 
 **ns-3 simulation artifact for the paper**  
-**“MAPPO-Based Routing with Adaptive 3D Broadcast Suppression for Flying Ad Hoc Networks”**
+**“A3D-BSM: Priority-Aware 3D Broadcast Suppression for Distributed UAV Networks with Insider-Resilient Coordination”**
 
 **Author:** Sabri Allani  
 **Repository:** [sabriallani/astro-fanet-artifact](https://github.com/sabriallani/astro-fanet-artifact)
 
 ## Overview
 
-This repository contains the executable simulation code used to study **ASTRO-FANET**, a routing framework for Flying Ad Hoc Networks (FANETs) that combines:
+This repository contains the executable ns-3 simulation code used to study **A3D-BSM**, a packet-level broadcast suppression mechanism for Flying Ad Hoc Networks (FANETs) that combines:
 
-- cooperative decision logic inspired by **MAPPO**
-- adaptive **3D broadcast suppression**
-- semantic-state emulation through an **SLM-inspired encoder**
-- optional trust-aware coordination support
+- adaptive **3D ellipsoidal broadcast suppression**
+- a priority-aware Emergency override
+- authenticated intent exchange with trust-aware neighbor filtering
+- measured packet delivery, rebroadcast reduction, delay, energy, and control-overhead metrics
 
 The repository is intended as the **code companion and executable artifact** for the paper titled:
 
-> **MAPPO-Based Routing with Adaptive 3D Broadcast Suppression for Flying Ad Hoc Networks**
+> **A3D-BSM: Priority-Aware 3D Broadcast Suppression for Distributed UAV Networks with Insider-Resilient Coordination**
 
 In practical terms, this repository lets a reader:
 
-- inspect the implementation of the ASTRO-FANET protocol
+- inspect the implementation of the A3D-BSM suppression layer and its ns-3 integration
 - run the simulation locally in **ns-3**
 - generate numerical outputs in `.csv`
 - export visual traces for **NetAnim**
@@ -29,16 +29,16 @@ In practical terms, this repository lets a reader:
 
 ## Relation To The Paper
 
-This codebase is provided in the context of the above paper as the **simulation artifact associated with the manuscript**.
+This codebase is provided in the context of the above paper as the **simulation artifact associated with the manuscript**. The paper's main contribution is the A3D-BSM broadcast-suppression mechanism; older ASTRO-FANET routing helpers are retained only as executable ns-3 scaffolding around that mechanism.
 
 The repository maps the paper's main technical blocks to executable code:
 
-- **Routing and forwarding logic**: `src/astro-fanet/model/astro-routing-protocol.cc`
 - **A3D-BSM broadcast suppression**: `src/astro-fanet/model/a3d-bsm.cc`
-- **MAPPO-inspired decision wrapper**: `src/astro-fanet/model/mappo-agent.cc`
-- **SLM-inspired semantic-state emulation**: `src/astro-fanet/model/slm-emulator.cc`
 - **Trust / coordination support**: `src/astro-fanet/model/trust-manager.cc`
+- **Routing and ns-3 integration scaffold**: `src/astro-fanet/model/astro-routing-protocol.cc`
 - **End-to-end scenario configuration**: `scratch/astro-fanet-sim.cc`
+
+The A3D-BSM calibration used in this artifact is fixed and disclosed in the source code. It does **not** depend on an online LLM, SLM, or trained neural policy at runtime.
 
 The paper explains the method at the algorithmic level; this repository shows how the simulation is assembled and executed in practice.
 
@@ -50,7 +50,7 @@ At runtime, the simulation performs the following high-level workflow:
 2. It assigns a mobility model such as **Gauss-Markov 3D** or **RPGM**.
 3. It configures IEEE `802.11a` ad hoc communication.
 4. It generates heterogeneous traffic classes such as emergency, command, sensing, and telemetry packets.
-5. It activates ASTRO-FANET or a baseline protocol.
+5. It activates the A3D-BSM-enabled custom mode or a baseline protocol.
 6. It records packet delivery, delay, throughput, AoI, control overhead, suppression activity, and energy-related counters.
 7. It optionally exports a **NetAnim** trace for visual playback.
 
@@ -58,7 +58,7 @@ The main executable scenario is:
 
 - [`ns-allinone-3.29/ns-3.29/scratch/astro-fanet-sim.cc`](ns-allinone-3.29/ns-3.29/scratch/astro-fanet-sim.cc)
 
-## How ASTRO-FANET Is Implemented In This Repository
+## How A3D-BSM Is Implemented In This Repository
 
 The implementation is organized around a custom `astro-fanet` ns-3 module.
 
@@ -84,14 +84,14 @@ The routing protocol is implemented in:
 
 - [`ns-allinone-3.29/ns-3.29/src/astro-fanet/model/astro-routing-protocol.cc`](ns-allinone-3.29/ns-3.29/src/astro-fanet/model/astro-routing-protocol.cc)
 
-This layer is responsible for:
+This layer is responsible for the ns-3 integration around A3D-BSM:
 
 - beacon handling
 - neighbor-table maintenance
 - route input/output logic
 - forwarding decisions
 - broadcast handling
-- execution of the ASTRO decision cycle
+- collection of delivery, rebroadcast, energy, and overhead metrics
 
 ### 3. Broadcast Suppression Layer
 
@@ -101,29 +101,22 @@ The adaptive 3D suppression logic is implemented in:
 
 Its role is to reduce redundant rebroadcasts in dense 3D FANET scenarios.
 
-### 4. Semantic-State Emulation Layer
-
-The SLM-inspired state encoder used in the simulation pipeline is implemented in:
-
-- [`ns-allinone-3.29/ns-3.29/src/astro-fanet/model/slm-emulator.cc`](ns-allinone-3.29/ns-3.29/src/astro-fanet/model/slm-emulator.cc)
-
-This component provides a lightweight simulation-side approximation of semantic context encoding.
-
-### 5. Decision Layer
-
-The MAPPO-inspired agent wrapper is implemented in:
-
-- [`ns-allinone-3.29/ns-3.29/src/astro-fanet/model/mappo-agent.cc`](ns-allinone-3.29/ns-3.29/src/astro-fanet/model/mappo-agent.cc)
-
-This layer represents the policy-side decision structure used by ASTRO-FANET in the executable prototype.
-
-### 6. Trust Support Layer
+### 4. Trust Support Layer
 
 Trust-aware coordination support is implemented in:
 
 - [`ns-allinone-3.29/ns-3.29/src/astro-fanet/model/trust-manager.cc`](ns-allinone-3.29/ns-3.29/src/astro-fanet/model/trust-manager.cc)
 
 This module supports authenticated coordination and behavior scoring in the simulation pipeline.
+
+### 5. Legacy Prototype Helpers
+
+The repository still contains earlier prototype files such as:
+
+- [`ns-allinone-3.29/ns-3.29/src/astro-fanet/model/mappo-agent.cc`](ns-allinone-3.29/ns-3.29/src/astro-fanet/model/mappo-agent.cc)
+- [`ns-allinone-3.29/ns-3.29/src/astro-fanet/model/slm-emulator.cc`](ns-allinone-3.29/ns-3.29/src/astro-fanet/model/slm-emulator.cc)
+
+These files are retained to keep the older executable scaffold buildable. They should not be interpreted as the A3D-BSM calibration method or as a claimed learning contribution of the current manuscript.
 
 ## Repository Structure
 
@@ -201,7 +194,7 @@ The scenario currently exposes the following protocol selections in the executab
 - `epidemic`
 - `dqn`
 
-ASTRO-FANET is the custom protocol proposed in the paper; the others are included as comparison modes inside the current simulation codebase.
+The `astro` mode is the custom ns-3 mode that exercises the A3D-BSM layer. The others are included as comparison modes inside the current simulation codebase.
 
 ## Output Metrics
 
@@ -222,7 +215,7 @@ These metrics are printed to the terminal and written to `.csv` files for post-p
 
 The artifact is most useful for:
 
-- understanding how ASTRO-FANET behaves under different FANET densities
+- understanding how A3D-BSM behaves under different FANET densities
 - comparing ASTRO mode with classical baseline modes
 - studying the impact of mobility choice such as `gm3d` vs `rpgm`
 - generating traces and videos for visual inspection
@@ -248,11 +241,11 @@ See:
 
 This repository should be understood as:
 
-- the **GitHub code companion** for the ASTRO-FANET paper
+- the **GitHub code companion** for the A3D-BSM paper
 - an **ns-3 executable simulation artifact**
 - a **reference implementation for local execution and visual demonstration**
 
-It should not be overstated as a fully frozen end-to-end training-and-evaluation package. The current implementation is best described as a practical and inspectable research artifact for the ASTRO-FANET simulation study.
+It should not be overstated as a fully frozen end-to-end reproduction package for every plot in the manuscript. The current implementation is best described as a practical and inspectable research artifact for the A3D-BSM simulation study.
 
 For current limitations, see:
 
@@ -262,11 +255,10 @@ For current limitations, see:
 
 If you refer to this repository in connection with the manuscript, use the paper title:
 
-> **Sabri Allani, “MAPPO-Based Routing with Adaptive 3D Broadcast Suppression for Flying Ad Hoc Networks.”**
+> **Sabri Allani, “A3D-BSM: Priority-Aware 3D Broadcast Suppression for Distributed UAV Networks with Insider-Resilient Coordination.”**
 
 ## License
 
 This repository contains upstream `ns-3` and `NetAnim` source components together with custom ASTRO-FANET code. Please preserve upstream notices and consult:
 
 - [`LICENSE`](LICENSE)
-

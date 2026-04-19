@@ -1,11 +1,11 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * ASTRO-FANET: Adaptive 3D Broadcast Storm Mitigation (A3D-BSM)
- * Implements Section 3.3 (Layer 3)
+ * Implements the A3D-BSM suppression layer.
  *
  * Key concepts:
  * - 3D Adaptive Suppression Zone: time-varying ellipsoid (Eq. 7-8)
- * - Semi-axes computed from SLM embedding via learned linear head W_z (Eq. 8)
+ * - Semi-axes computed from bounded local context with fixed calibrated coefficients
  * - Thresholded rebroadcast rule combining zone membership, density, angular diversity (Eq. 10)
  * - Emergency packets are NEVER suppressed (Property 3)
  */
@@ -15,6 +15,7 @@
 #include "ns3/object.h"
 #include "ns3/vector.h"
 #include "astro-packet.h"
+#include <array>
 #include <vector>
 #include <map>
 #include <set>
@@ -36,7 +37,7 @@ struct BroadcastEvent
  * \brief Adaptive 3D Broadcast Storm Mitigation mechanism
  *
  * Extends the Zone-of-Relevance concept from DPMS (Allani et al., 2018)
- * to 3D aerial domain with learned, context-adaptive suppression zones.
+ * to 3D aerial domain with fixed offline-calibrated suppression zones.
  */
 class A3dBsm : public Object
 {
@@ -47,11 +48,22 @@ public:
   virtual ~A3dBsm ();
 
   /**
-   * Compute the 3D adaptive suppression zone semi-axes from the SLM embedding.
-   * Implements Eq. 8: [a(t), b(t), c(t)]^T = a_min + sigmoid(W_z * z_i(t)) * (a_max - a_min)
+   * Compute the 3D adaptive suppression zone semi-axes from local context.
+   * Implements the paper's fixed calibrated linear head:
+   * [a,b,c]^T = a_min + sigmoid(W_xi * xi_i + b_xi) * (a_max - a_min).
    *
-   * \param embedding The SLM embedding z_i(t) of dimension d_z
+   * \param localDensity Trusted-neighbor count rho_i(t)
+   * \param mobilityGradient Velocity difference relative to trusted neighbors
+   * \param broadcastFeatures [priority, age, hop count, distance_to_origin]
    * \returns Vector3D containing (a, b, c) semi-axes
+   */
+  Vector3D ComputeSuppressionZone (double localDensity,
+                                   const Vector3D &mobilityGradient,
+                                   const std::vector<double> &broadcastFeatures) const;
+
+  /**
+   * Compatibility wrapper retained for older callers. The current paper does
+   * not use SLM embeddings for A3D-BSM calibration.
    */
   Vector3D ComputeSuppressionZone (const std::vector<float> &embedding) const;
 
@@ -82,11 +94,17 @@ public:
   /**
    * Compute suppression score sigma_i(t) (Eq. 9 in the paper, suppression decision).
    *
-   * \param embedding SLM embedding z_i(t)
    * \param broadcastFeatures Broadcast packet features [priority, age, hop count, distance]
-   * \param localDensity Local UAV density estimate rho_local(t)
+   * \param localDensity Trusted-neighbor count rho_i(t)
    * \param mobilityGradient Local mobility gradient nabla v_i(t)
    * \returns Suppression score sigma_i(t)
+   */
+  double ComputeSuppressionScore (const std::vector<double> &broadcastFeatures,
+                                  double localDensity,
+                                  const Vector3D &mobilityGradient) const;
+
+  /**
+   * Compatibility wrapper retained for older callers. The embedding argument is ignored.
    */
   double ComputeSuppressionScore (const std::vector<float> &embedding,
                                   const std::vector<double> &broadcastFeatures,
@@ -101,7 +119,7 @@ public:
    * \param currentPos Current node position
    * \param originPos Broadcast origin position
    * \param prevRelayPos Previous relay position
-   * \param embedding SLM embedding z_i(t)
+   * \param embedding Legacy scaffold argument, ignored by A3D-BSM
    * \param localDensity Local density estimate
    * \param mobilityGradient Mobility gradient
    * \param broadcastFeatures Broadcast features
@@ -136,6 +154,9 @@ public:
   void SetRmax (double rmax) { m_Rmax = rmax; }
   void SetAmin (double amin) { m_aMin = amin; }
   void SetAmax (double amax) { m_aMax = amax; }
+  void SetDensityReference (double rhoRef) { m_rhoRef = rhoRef; }
+  void SetMobilityGradientReference (double gRef) { m_gRef = gRef; }
+  void SetHopReference (double hMax) { m_hMax = hMax; }
   void SetDensityThreshold (double rhoTh) { m_rhoTh = rhoTh; }
   void SetAngularThreshold (double thetaTh) { m_thetaTh = thetaTh; }
   void SetSuppressionThreshold (double sigmaTh) { m_sigmaTh = sigmaTh; }
@@ -147,19 +168,16 @@ public:
 private:
   // Zone parameters
   double m_Rmax;      // Maximum communication range (400m from Table 2)
-  double m_aMin;      // Minimum semi-axis = 0.2 * R_max
+  double m_aMin;      // Minimum semi-axis = kappa_min * R_max
   double m_aMax;      // Maximum semi-axis = R_max
+  double m_rhoRef;    // Neighbor-count normalization reference
+  double m_gRef;      // Mobility-gradient normalization reference
+  double m_hMax;      // Hop-count normalization reference
 
   // Thresholds (Eq. 10)
-  double m_rhoTh;     // Density threshold rho_th
+  double m_rhoTh;     // Trusted-neighbor threshold rho_th
   double m_thetaTh;   // Angular threshold theta_th (radians)
-  double m_sigmaTh;   // Learned suppression threshold sigma_thresh
-
-  // Learned weights W_z (3 x d_z) for semi-axis computation
-  std::vector<std::vector<float>> m_Wz;
-
-  // Learned weights w_sigma for suppression scoring
-  std::vector<float> m_wSigma;
+  double m_sigmaTh;   // Suppression threshold sigma_th
 
   // Broadcast tracking
   std::map<std::pair<uint32_t, uint32_t>, BroadcastEvent> m_seenBroadcasts;
@@ -168,9 +186,12 @@ private:
 
   // Sigmoid function
   double Sigmoid (double x) const;
-
-  // Initialize learned weights (pseudo-random or from file)
-  void InitializeWeights ();
+  double Clamp01 (double value) const;
+  double Norm (const Vector3D &v) const;
+  double EstimateChannelOccupancy (double localDensity) const;
+  std::array<double, 5> BuildContext (double localDensity,
+                                      const Vector3D &mobilityGradient,
+                                      const std::vector<double> &broadcastFeatures) const;
 };
 
 } // namespace astro

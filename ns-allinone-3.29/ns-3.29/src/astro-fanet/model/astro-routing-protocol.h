@@ -1,8 +1,7 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
- * ASTRO-FANET: Main Routing Protocol
- * Integrates all 4 layers: SLM encoding, MAPPO policy, A3D-BSM, Security
- * Implements Algorithm 1 (ASTRO-FANET Distributed Decision Cycle)
+ * ASTRO-FANET/A3D-BSM: ns-3 integration protocol
+ * Integrates beacon exchange, A3D-BSM, trust scoring, and legacy routing helpers.
  */
 #ifndef ASTRO_ROUTING_PROTOCOL_H
 #define ASTRO_ROUTING_PROTOCOL_H
@@ -67,19 +66,20 @@ struct NeighborEntry
 };
 
 /**
- * \brief ASTRO-FANET routing protocol for NS-3
+ * \brief ns-3 integration protocol for the A3D-BSM simulation artifact
  *
- * This is the main routing protocol class that implements the full
- * ASTRO-FANET decision cycle (Algorithm 1) as an Ipv4RoutingProtocol.
+ * This class wires the A3D-BSM suppression layer into an Ipv4RoutingProtocol
+ * so it can be exercised in end-to-end FANET scenarios.
  *
  * Key features:
- * - Periodic beaconing with intent vectors (Section 3.5)
- * - SLM-based state encoding (Layer 1)
- * - MAPPO policy inference for action selection (Layer 2)
- * - A3D-BSM broadcast suppression (Layer 3)
- * - HMAC authentication and trust scoring (Layer 4)
+ * - Periodic beaconing with intent/security fields
+ * - A3D-BSM broadcast suppression
+ * - HMAC-style authentication and trust scoring
  * - Priority-aware packet queuing (4 traffic classes)
  * - Metrics collection (PDR, delay, throughput, BRR, energy, overhead)
+ *
+ * Older MAPPO/SLM helper classes remain in the executable scaffold for
+ * route-selection compatibility, but they are not used to calibrate A3D-BSM.
  */
 class AstroRoutingProtocol : public Ipv4RoutingProtocol
 {
@@ -159,7 +159,7 @@ private:
   uint32_t m_maxQueueSize;
   uint32_t m_queueSizes[4];  // Per-class queue lengths
 
-  // Current SLM embedding
+  // Legacy scaffold context vector
   std::vector<float> m_currentEmbedding;
 
   // ---- Timers ----
@@ -184,7 +184,7 @@ private:
   // ---- Duplicate detection ----
   std::set<std::pair<uint32_t, uint32_t>> m_seenPackets;  // (originId, seqNo)
 
-  // ---- Core methods (Algorithm 1) ----
+  // ---- Core methods ----
 
   /**
    * Send periodic beacon with intent vector and compressed embedding.
@@ -197,7 +197,7 @@ private:
   void HandleBeacon (Ptr<Socket> socket);
 
   /**
-   * Execute one decision epoch (Algorithm 1).
+   * Execute one decision epoch.
    * Called every m_decisionEpoch (200ms).
    */
   void ExecuteDecisionCycle ();
@@ -213,7 +213,7 @@ private:
   std::vector<float> AggregateNeighborIntents () const;
 
   /**
-   * Build the neighbor info vector for the MAPPO agent.
+   * Build the neighbor info vector for the legacy route-selection helper.
    */
   std::vector<NeighborInfo> BuildNeighborInfoVector () const;
 

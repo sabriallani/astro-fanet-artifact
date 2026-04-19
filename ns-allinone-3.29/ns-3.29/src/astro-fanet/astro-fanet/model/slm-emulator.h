@@ -1,11 +1,10 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
- * ASTRO-FANET: SLM Encoder Emulation via k-NN Interpolation
- * Implements Section 4.1.1 (SLM encoder in simulation)
+ * ASTRO-FANET legacy context-vector emulator.
  *
- * Strategy: Pre-computed Phi-3-mini embeddings are loaded from file.
- * At runtime, k-NN interpolation (k=5) in raw state space produces
- * the approximate embedding z_i(t) in R^256.
+ * This class is retained by the executable ns-3 scaffold for compatibility
+ * with older route-selection code. It is not the A3D-BSM calibration method
+ * used by the current manuscript.
  */
 #ifndef SLM_EMULATOR_H
 #define SLM_EMULATOR_H
@@ -43,10 +42,9 @@ struct EmbeddingEntry
 };
 
 /**
- * \brief SLM encoder emulator using k-NN interpolation over pre-computed embeddings
+ * \brief Legacy context-vector emulator using k-NN interpolation.
  *
- * This class implements the embedding pre-computation and interpolation strategy
- * described in Section 4.1.1 of the paper:
+ * This class supports the older executable scaffold:
  * 1. Load 50,000 pre-computed (state, embedding) pairs from file
  * 2. For a new state, find k=5 nearest neighbors in raw state space
  * 3. Return inverse-distance-weighted interpolation of their embeddings
