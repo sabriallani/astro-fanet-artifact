@@ -1,0 +1,8 @@
+campaign,artifact_protocol,paper_protocol,nUavs,mobility,seeds,simTime,pktRate,byzFraction,outputDir,status
+main,astro,A3D-BSM,"20;40;60;80","gm3d;rpgm",3001-3010,120,1.0,0.0,results/paper-a3dbsm,scripted
+insider,astro,A3D-BSM-T,60,gm3d,3001-3010,120,1.0,"0.0;0.1;0.2;0.3",results/paper-a3dbsm-byzantine,scripted
+baseline,not_exposed,SF,"20;40;60;80",gm3d,3001-3010,120,1.0,0.0,not_available,requires_implementation_or_raw_traces
+baseline,not_exposed,CB,"20;40;60;80",gm3d,3001-3010,120,1.0,0.0,not_available,requires_implementation_or_raw_traces
+baseline,not_exposed,PR,"20;40;60;80",gm3d,3001-3010,120,1.0,0.0,not_available,requires_implementation_or_raw_traces
+baseline,not_exposed,SBA,"20;40;60;80",gm3d,3001-3010,120,1.0,0.0,not_available,requires_implementation_or_raw_traces
+baseline,not_exposed,3D-DNA-BSP,"20;40;60;80",gm3d,3001-3010,120,1.0,0.0,not_available,requires_implementation_or_raw_traces

@@ -127,6 +127,7 @@ These files are retained to keep the older executable scaffold buildable. They s
 - [`docs/VIDEO_DEMO.md`](docs/VIDEO_DEMO.md): video and NetAnim workflow
 - [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md): current scope and artifact limitations
 - [`docs/REPOSITORY_SCOPE.md`](docs/REPOSITORY_SCOPE.md): explanation of what is intentionally included in the repository
+- [`paper-reproduction/`](paper-reproduction): paper-aligned A3D-BSM campaign scripts, coverage matrix, and editor/reviewer reproducibility notes
 
 ## Quick Start
 
@@ -166,6 +167,29 @@ cd ns-allinone-3.29/ns-3.29
 Demo launcher:
 
 - [`ns-allinone-3.29/ns-3.29/run-astro-video-demo.sh`](ns-allinone-3.29/ns-3.29/run-astro-video-demo.sh)
+
+### Paper-Aligned A3D-BSM Campaign
+
+The `paper-reproduction/` folder contains scripts aligned with the manuscript's
+A3D-BSM settings: `N = 20, 40, 60, 80`, GM3D/RPGM mobility, seeds
+`3001--3010`, 120-second runs, and the gray-hole fraction sweep
+`0, 0.1, 0.2, 0.3`.
+
+Preview the commands without running ns-3:
+
+```bash
+python3 paper-reproduction/run_a3dbsm_paper_campaign.py --campaign all --dry-run
+```
+
+Run the paper-aligned A3D-BSM campaign:
+
+```bash
+python3 paper-reproduction/run_a3dbsm_paper_campaign.py --campaign all
+```
+
+See [`paper-reproduction/reproducibility_status.md`](paper-reproduction/reproducibility_status.md)
+for the exact coverage matrix and current gaps relative to every manuscript
+baseline.
 
 ## Main Simulation Parameters
 
@@ -244,8 +268,12 @@ This repository should be understood as:
 - the **GitHub code companion** for the A3D-BSM paper
 - an **ns-3 executable simulation artifact**
 - a **reference implementation for local execution and visual demonstration**
+- a **paper-aligned A3D-BSM campaign artifact**
 
-It should not be overstated as a fully frozen end-to-end reproduction package for every plot in the manuscript. The current implementation is best described as a practical and inspectable research artifact for the A3D-BSM simulation study.
+It should not be overstated as a fully frozen end-to-end reproduction package
+for every plot in the manuscript. The current implementation is best described
+as a practical and inspectable research artifact for the A3D-BSM simulation
+study, with explicit reproduction-scope notes in `paper-reproduction/`.
 
 For current limitations, see:
 

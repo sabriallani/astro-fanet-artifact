@@ -1,6 +1,9 @@
 # Current Limitations
 
-This repository is a practical ns-3 artifact for execution and visualization, but it does not yet constitute a full journal-grade reproduction package for every reported result.
+This repository is a practical ns-3 artifact for execution and visualization.
+It now includes paper-aligned A3D-BSM campaign scripts under
+`paper-reproduction/`, but it does not yet constitute a full journal-grade
+reproduction package for every reported baseline and figure.
 
 ## Current Technical Limits
 
@@ -11,10 +14,14 @@ This repository is a practical ns-3 artifact for execution and visualization, bu
 
 ## What Is Still Missing For A Full Reproduction Package
 
-- exact batch scripts for the full multi-seed campaign
-- confidence-interval and statistical-test reproduction scripts
-- complete baseline parity with every protocol reported in the final ns-3 study
+- exact executable parity for the packet-level baselines reported in the final
+  manuscript (`SF`, `CB`, `PR`, `SBA`, and `3D-DNA-BSP`)
+- complete post-processing parity for every manuscript table and figure
 - a fully frozen archive of every raw trace used to produce the final manuscript tables
+
+The A3D-BSM paper campaign itself is scripted in
+`paper-reproduction/run_a3dbsm_paper_campaign.py`, and the current coverage
+matrix is documented in `paper-reproduction/reproducibility_status.md`.
 
 ## Recommended Positioning
 
@@ -24,6 +31,7 @@ The repository should be described as:
 - `demonstration and executable reference implementation`
 - `visualization and local validation package`
 - `A3D-BSM code companion`
+- `paper-aligned A3D-BSM campaign artifact`
 
 It should not yet be described as:
 

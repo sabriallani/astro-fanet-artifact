@@ -37,6 +37,32 @@ cd ns-allinone-3.29/ns-3.29
 
 The CSV should include columns such as `ctrlOverhead`, `broadcasts`, and `suppressed`.
 
+## Paper-Aligned A3D-BSM Campaign
+
+From the repository root, preview the manuscript-aligned A3D-BSM runs:
+
+```bash
+python3 paper-reproduction/run_a3dbsm_paper_campaign.py --campaign all --dry-run
+```
+
+Run the A3D-BSM paper campaign:
+
+```bash
+python3 paper-reproduction/run_a3dbsm_paper_campaign.py --campaign all
+```
+
+This uses:
+
+- `N = 20, 40, 60, 80`
+- mobility `gm3d` and `rpgm`
+- seeds `3001--3010`
+- `simTime = 120`
+- `pktRate = 1.0`
+- Byzantine fractions `0, 0.1, 0.2, 0.3` for the insider sweep
+
+See `paper-reproduction/reproducibility_status.md` before using this artifact
+as evidence for manuscript-level reproducibility.
+
 ## Visual Run
 
 ```bash
