@@ -49,6 +49,10 @@ folder. The manifest records the exact ns-3 command, working directory, and
 parsed parameters (`nUavs`, mobility, seed, simulation time, packet rate, and
 Byzantine fraction) for every requested run.
 
+The summarizer validates the required CSV schema and numeric metric values before
+computing confidence intervals. It stops with an explicit error rather than
+silently summarizing incomplete or malformed results.
+
 ## Important Scope Statement
 
 This repository currently provides an inspectable and runnable A3D-BSM
