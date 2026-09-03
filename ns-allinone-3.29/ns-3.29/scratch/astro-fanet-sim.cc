@@ -372,6 +372,46 @@ main (int argc, char *argv[])
         }
     }
 
+  // ---------- Validate command-line parameters before allocating ns-3 state ----------
+  if (nUavs < 2)
+    {
+      std::cerr << "Invalid nUavs: expected at least 2" << std::endl;
+      return 1;
+    }
+  if (protocol != "astro" && protocol != "aodv" && protocol != "olsr"
+      && protocol != "epidemic" && protocol != "dqn")
+    {
+      std::cerr << "Invalid protocol: " << protocol << std::endl;
+      return 1;
+    }
+  if (mobility != "gm3d" && mobility != "rpgm")
+    {
+      std::cerr << "Invalid mobility model: " << mobility << std::endl;
+      return 1;
+    }
+  if (simTime <= 0.0 || pktRate < 0.0 || commRange <= 0.0 || minSpeed < 0.0
+      || maxSpeed < minSpeed || areaX <= 0.0 || areaY <= 0.0 || areaZ <= 0.0)
+    {
+      std::cerr << "Invalid physical or timing parameter" << std::endl;
+      return 1;
+    }
+  if (gmAlpha < 0.0 || gmAlpha > 1.0)
+    {
+      std::cerr << "Invalid gmAlpha: expected a value in [0,1]" << std::endl;
+      return 1;
+    }
+  if (byzFraction < 0.0 || byzFraction >= 1.0)
+    {
+      std::cerr << "Invalid byzFraction: expected a value in [0,1)" << std::endl;
+      return 1;
+    }
+  if (outputDir.empty () || animPollInterval <= 0.0 || animBackgroundOpacity < 0.0
+      || animBackgroundOpacity > 1.0 || animNodeSize <= 0.0 || animSinkSize <= 0.0)
+    {
+      std::cerr << "Invalid output or animation parameter" << std::endl;
+      return 1;
+    }
+
   // Set random seed
   SeedManager::SetSeed (seed);
   SeedManager::SetRun (seed);
