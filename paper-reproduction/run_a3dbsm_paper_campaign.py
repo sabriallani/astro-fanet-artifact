@@ -64,12 +64,24 @@ def parse_run_parameters(command: list[str]) -> dict[str, object]:
     return values
 
 
+def run_log_path(cwd: Path, command: list[str]) -> Path:
+    """Return the deterministic log path for one run command."""
+    parameters = parse_run_parameters(command)
+    label = (
+        f"{parameters['protocol']}_n{parameters['nUavs']}_"
+        f"{parameters['mobility']}_s{parameters['seed']}_"
+        f"bz{int(float(str(parameters['byzFraction'])) * 100.0)}"
+    )
+    return cwd / str(parameters["outputDir"]) / f"{label}.log"
+
+
 def build_manifests(tasks: list[list[str]], cwd: Path) -> dict[str, dict[str, object]]:
     """Build deterministic, per-output-directory run manifests."""
     grouped: dict[str, list[dict[str, object]]] = defaultdict(list)
     for task in tasks:
         parameters = parse_run_parameters(task)
         output_dir = str(parameters["outputDir"])
+        parameters["logFile"] = str(run_log_path(cwd, task).relative_to(cwd))
         grouped[output_dir].append(parameters)
 
     return {
@@ -99,7 +111,19 @@ def run_command(command: list[str], cwd: Path, dry_run: bool) -> bool:
         print(printable)
         return True
 
-    result = subprocess.run(command, cwd=str(cwd), text=True)
+    if "--outputDir=" not in command[-1]:
+        result = subprocess.run(command, cwd=str(cwd), text=True)
+        return result.returncode == 0
+
+    log_path = run_log_path(cwd, command)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    result = subprocess.run(command, cwd=str(cwd), text=True, capture_output=True)
+    log_path.write_text(
+        f"$ {printable}\n\n"
+        f"returncode: {result.returncode}\n\n"
+        f"--- stdout ---\n{result.stdout}\n"
+        f"--- stderr ---\n{result.stderr}"
+    )
     return result.returncode == 0
 
 
