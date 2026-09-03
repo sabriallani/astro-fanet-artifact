@@ -645,7 +645,8 @@ main (int argc, char *argv[])
     {
       SystemPath::MakeDirectories (outputDir);
       std::string runTag = protocol + "_n" + std::to_string (nUavs)
-                           + "_" + mobility + "_s" + std::to_string (seed);
+                           + "_" + mobility + "_s" + std::to_string (seed)
+                           + "_bz" + std::to_string (static_cast<int> (byzFraction * 100.0));
       animFile = outputDir + "/" + runTag + ".anim.xml";
       routeFile = outputDir + "/" + runTag + ".routes.xml";
 
@@ -816,7 +817,8 @@ main (int argc, char *argv[])
   // Write to CSV for batch analysis
   SystemPath::MakeDirectories (outputDir);
   std::string csvFile = outputDir + "/" + protocol + "_n" + std::to_string (nUavs)
-                        + "_" + mobility + "_s" + std::to_string (seed) + ".csv";
+                        + "_" + mobility + "_s" + std::to_string (seed)
+                        + "_bz" + std::to_string (static_cast<int> (byzFraction * 100.0)) + ".csv";
   std::ofstream csv (csvFile);
   if (csv.is_open ())
     {
