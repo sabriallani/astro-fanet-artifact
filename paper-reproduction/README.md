@@ -44,6 +44,11 @@ python3 paper-reproduction/summarize_a3dbsm_results.py \
   --results-dir ns-allinone-3.29/ns-3.29/results/paper-a3dbsm
 ```
 
+Each non-dry-run campaign also writes a `run-manifest.json` file in every output
+folder. The manifest records the exact ns-3 command, working directory, and
+parsed parameters (`nUavs`, mobility, seed, simulation time, packet rate, and
+Byzantine fraction) for every requested run.
+
 ## Important Scope Statement
 
 This repository currently provides an inspectable and runnable A3D-BSM
