@@ -680,10 +680,10 @@ main (int argc, char *argv[])
     }
 
   // ---------- Optional NetAnim export ----------
-#ifdef ASTRO_ENABLE_NETANIM
-  std::unique_ptr<AnimationInterface> anim;
   std::string animFile;
   std::string routeFile;
+#ifdef ASTRO_ENABLE_NETANIM
+  std::unique_ptr<AnimationInterface> anim;
   if (enableAnim)
     {
       SystemPath::MakeDirectories (outputDir);
