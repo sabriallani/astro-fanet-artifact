@@ -11,7 +11,7 @@ on:
       - ".github/workflows/ns3-diagnostic.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   diagnostic:
@@ -94,3 +94,23 @@ jobs:
             ns-allinone-3.29/ns-3.29/results/diagnostic/**
             ns-allinone-3.29/ns-3.29/build/config.log
             paper-reproduction/diagnostic_summary.csv
+
+      - name: Publish diagnostic summary branch
+        if: success() && (github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cp paper-reproduction/diagnostic_summary.csv /tmp/diagnostic_summary.csv
+          git fetch origin diagnostic-results || true
+          git checkout --orphan diagnostic-results-publish
+          git rm -rf . >/dev/null 2>&1 || true
+          mkdir -p published-results
+          cp /tmp/diagnostic_summary.csv published-results/diagnostic_summary.csv
+          printf '%s\n' "${GITHUB_SHA}" > published-results/source_commit.txt
+          git add published-results
+          git commit -m "Publish diagnostic summary [skip ci]"
+          git push origin HEAD:diagnostic-results --force
