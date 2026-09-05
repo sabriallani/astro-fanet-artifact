@@ -25,6 +25,12 @@ T95 = {
     30: 2.042,
 }
 
+METRIC_NAMES = ["pdr", "brr", "avgDelay", "ctrlOverhead", "broadcasts", "suppressed"]
+REQUIRED_COLUMNS = {
+    "protocol", "nUavs", "mobility", "seed", "simTime", "byzFraction",
+    *METRIC_NAMES,
+}
+
 
 def t_critical_95(df: int) -> float:
     if df in T95:
@@ -50,7 +56,26 @@ def load_rows(results_dir: Path) -> list[dict[str, str]]:
     for csv_path in sorted(results_dir.rglob("*.csv")):
         with csv_path.open(newline="") as handle:
             reader = csv.DictReader(handle)
-            rows.extend(reader)
+            columns = set(reader.fieldnames or [])
+            missing = REQUIRED_COLUMNS - columns
+            if missing:
+                names = ", ".join(sorted(missing))
+                raise ValueError(f"{csv_path}: missing required columns: {names}")
+            file_rows = list(reader)
+            for row_number, row in enumerate(file_rows, start=2):
+                for metric in METRIC_NAMES:
+                    value = row.get(metric, "")
+                    try:
+                        parsed = float(value)
+                    except (TypeError, ValueError):
+                        raise ValueError(
+                            f"{csv_path}:{row_number}: non-numeric value for {metric}: {value!r}"
+                        ) from None
+                    if not math.isfinite(parsed):
+                        raise ValueError(
+                            f"{csv_path}:{row_number}: non-finite value for {metric}: {value!r}"
+                        )
+            rows.extend(file_rows)
     return rows
 
 
@@ -72,7 +97,7 @@ def summarize(rows: list[dict[str, str]]) -> list[dict[str, str]]:
         )
         groups[key].append(row)
 
-    metric_names = ["pdr", "brr", "avgDelay", "ctrlOverhead", "broadcasts", "suppressed"]
+    metric_names = METRIC_NAMES
     output_rows: list[dict[str, str]] = []
     for key, group_rows in sorted(groups.items()):
         protocol, n_uavs, mobility, byz_fraction = key
@@ -102,7 +127,11 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     results_dir = Path(args.results_dir)
-    rows = load_rows(results_dir)
+    try:
+        rows = load_rows(results_dir)
+    except ValueError as error:
+        print(f"CSV validation failed: {error}")
+        return 1
     if not rows:
         print(f"No CSV files found under {results_dir}")
         return 1

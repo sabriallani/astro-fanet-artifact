@@ -3,6 +3,7 @@
 #include "ns3/log.h"
 #include "ns3/simulator.h"
 #include "ns3/udp-socket-factory.h"
+#include "ns3/udp-header.h"
 #include "ns3/inet-socket-address.h"
 #include "ns3/boolean.h"
 #include "ns3/uinteger.h"
@@ -332,8 +333,11 @@ AstroRoutingProtocol::RouteInput (Ptr<const Packet> p, const Ipv4Header &header,
 
       // Now check if this is a data broadcast (has AstroDataHeader) for A3D-BSM
       Ptr<Packet> pCopy = p->Copy ();
+      UdpHeader udpHeader;
       AstroDataHeader dataHdr;
-      if (pCopy->PeekHeader (dataHdr) && dataHdr.GetOriginId () > 0)
+      if (pCopy->RemoveHeader (udpHeader)
+          && pCopy->PeekHeader (dataHdr)
+          && dataHdr.GetOriginId () > 0)
         {
           // Duplicate check for data broadcasts
           auto pktId = std::make_pair (dataHdr.GetOriginId (), dataHdr.GetSequenceNumber ());

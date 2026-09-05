@@ -25,7 +25,9 @@
 #include "ns3/applications-module.h"
 #include "ns3/flow-monitor-module.h"
 #include "ns3/stats-module.h"
+#ifdef ASTRO_ENABLE_NETANIM
 #include "ns3/netanim-module.h"
+#endif
 #include "ns3/system-path.h"
 
 // ASTRO-FANET module
@@ -372,6 +374,46 @@ main (int argc, char *argv[])
         }
     }
 
+  // ---------- Validate command-line parameters before allocating ns-3 state ----------
+  if (nUavs < 2)
+    {
+      std::cerr << "Invalid nUavs: expected at least 2" << std::endl;
+      return 1;
+    }
+  if (protocol != "astro" && protocol != "aodv" && protocol != "olsr"
+      && protocol != "epidemic" && protocol != "dqn")
+    {
+      std::cerr << "Invalid protocol: " << protocol << std::endl;
+      return 1;
+    }
+  if (mobility != "gm3d" && mobility != "rpgm")
+    {
+      std::cerr << "Invalid mobility model: " << mobility << std::endl;
+      return 1;
+    }
+  if (simTime <= 0.0 || pktRate < 0.0 || commRange <= 0.0 || minSpeed < 0.0
+      || maxSpeed < minSpeed || areaX <= 0.0 || areaY <= 0.0 || areaZ <= 0.0)
+    {
+      std::cerr << "Invalid physical or timing parameter" << std::endl;
+      return 1;
+    }
+  if (gmAlpha < 0.0 || gmAlpha > 1.0)
+    {
+      std::cerr << "Invalid gmAlpha: expected a value in [0,1]" << std::endl;
+      return 1;
+    }
+  if (byzFraction < 0.0 || byzFraction >= 1.0)
+    {
+      std::cerr << "Invalid byzFraction: expected a value in [0,1)" << std::endl;
+      return 1;
+    }
+  if (outputDir.empty () || animPollInterval <= 0.0 || animBackgroundOpacity < 0.0
+      || animBackgroundOpacity > 1.0 || animNodeSize <= 0.0 || animSinkSize <= 0.0)
+    {
+      std::cerr << "Invalid output or animation parameter" << std::endl;
+      return 1;
+    }
+
   // Set random seed
   SeedManager::SetSeed (seed);
   SeedManager::SetRun (seed);
@@ -638,14 +680,16 @@ main (int argc, char *argv[])
     }
 
   // ---------- Optional NetAnim export ----------
-  std::unique_ptr<AnimationInterface> anim;
   std::string animFile;
   std::string routeFile;
+#ifdef ASTRO_ENABLE_NETANIM
+  std::unique_ptr<AnimationInterface> anim;
   if (enableAnim)
     {
       SystemPath::MakeDirectories (outputDir);
       std::string runTag = protocol + "_n" + std::to_string (nUavs)
-                           + "_" + mobility + "_s" + std::to_string (seed);
+                           + "_" + mobility + "_s" + std::to_string (seed)
+                           + "_bz" + std::to_string (static_cast<int> (byzFraction * 100.0));
       animFile = outputDir + "/" + runTag + ".anim.xml";
       routeFile = outputDir + "/" + runTag + ".routes.xml";
 
@@ -712,6 +756,7 @@ main (int argc, char *argv[])
       anim->UpdateNodeColor (sinkNode.Get (0), 40, 170, 90);
       anim->UpdateNodeSize (sinkNode.Get (0)->GetId (), animSinkSize, animSinkSize);
     }
+#endif  // ASTRO_ENABLE_NETANIM
 
   // ---------- Run simulation ----------
   NS_LOG_INFO ("Starting simulation for " << simTime << " seconds...");
@@ -769,6 +814,7 @@ main (int argc, char *argv[])
     }
 
   // ---------- Output results ----------
+  std::string pdrSource = "app";
   double pdr = g_metrics.GetPDR ();
   double avgDelay = g_metrics.GetAvgDelay ();
   double throughput = g_metrics.GetThroughput (simTime);
@@ -784,6 +830,7 @@ main (int argc, char *argv[])
     {
       g_metrics.totalDelivered = fmDelivered;
       pdr = 100.0 * fmDelivered / (fmDelivered + fmLost);
+      pdrSource = "flowmon";
     }
 
   std::cout << "\n======================================" << std::endl;
@@ -796,6 +843,11 @@ main (int argc, char *argv[])
   std::cout << "Duration:           " << simTime << " s" << std::endl;
   std::cout << "--------------------------------------" << std::endl;
   std::cout << "PDR (%):            " << pdr << std::endl;
+  std::cout << "PDR source:         " << pdrSource << std::endl;
+  std::cout << "Generated (app):    " << g_metrics.totalGenerated << std::endl;
+  std::cout << "Delivered (app):    " << g_metrics.totalDelivered << std::endl;
+  std::cout << "Delivered (FM):     " << fmDelivered << std::endl;
+  std::cout << "Lost (FM):          " << fmLost << std::endl;
   std::cout << "Avg Delay (ms):     " << avgDelay << std::endl;
   std::cout << "Throughput (kbit/s):" << throughput << std::endl;
   std::cout << "Avg AoI (ms):       " << avgAoI << std::endl;
@@ -816,15 +868,19 @@ main (int argc, char *argv[])
   // Write to CSV for batch analysis
   SystemPath::MakeDirectories (outputDir);
   std::string csvFile = outputDir + "/" + protocol + "_n" + std::to_string (nUavs)
-                        + "_" + mobility + "_s" + std::to_string (seed) + ".csv";
+                        + "_" + mobility + "_s" + std::to_string (seed)
+                        + "_bz" + std::to_string (static_cast<int> (byzFraction * 100.0)) + ".csv";
   std::ofstream csv (csvFile);
   if (csv.is_open ())
     {
-      csv << "protocol,nUavs,mobility,seed,simTime,pdr,avgDelay,throughput,avgAoI,"
+      csv << "protocol,nUavs,mobility,seed,simTime,pdr,pdr_source,totalGenerated,"
+          << "totalDelivered,flowMonitorDelivered,flowMonitorLost,avgDelay,throughput,avgAoI,"
           << "ctrlOverhead,energyPerBit,brr,broadcasts,suppressed,totalEnergy,byzFraction"
           << std::endl;
       csv << protocol << "," << nUavs << "," << mobility << "," << seed << ","
-          << simTime << "," << pdr << "," << avgDelay << "," << throughput << ","
+          << simTime << "," << pdr << "," << pdrSource << ","
+          << g_metrics.totalGenerated << "," << g_metrics.totalDelivered << ","
+          << fmDelivered << "," << fmLost << "," << avgDelay << "," << throughput << ","
           << avgAoI << "," << ctrlOverhead << "," << energyPerBit << "," << brr << ","
           << g_metrics.totalBroadcasts << "," << g_metrics.suppressedBroadcasts << ","
           << g_metrics.totalEnergyConsumed << "," << byzFraction << std::endl;

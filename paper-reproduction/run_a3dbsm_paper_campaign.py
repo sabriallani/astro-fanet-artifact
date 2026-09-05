@@ -10,8 +10,11 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import json
 import os
+import shlex
 import subprocess
+from collections import defaultdict
 from pathlib import Path
 
 
@@ -45,13 +48,82 @@ def build_command(n_uavs: int, mobility: str, seed: int, sim_time: float,
     return ["./waf", "--run", scenario]
 
 
+def parse_run_parameters(command: list[str]) -> dict[str, object]:
+    """Extract the ns-3 parameters from one generated command."""
+    values: dict[str, object] = {"command": command}
+    for token in shlex.split(command[-1]):
+        if not token.startswith("--") or "=" not in token:
+            continue
+        key, value = token[2:].split("=", 1)
+        if key in {"nUavs", "seed"}:
+            values[key] = int(value)
+        elif key in {"simTime", "pktRate", "byzFraction"}:
+            values[key] = float(value)
+        else:
+            values[key] = value
+    return values
+
+
+def run_log_path(cwd: Path, command: list[str]) -> Path:
+    """Return the deterministic log path for one run command."""
+    parameters = parse_run_parameters(command)
+    label = (
+        f"{parameters['protocol']}_n{parameters['nUavs']}_"
+        f"{parameters['mobility']}_s{parameters['seed']}_"
+        f"bz{int(float(str(parameters['byzFraction'])) * 100.0)}"
+    )
+    return cwd / str(parameters["outputDir"]) / f"{label}.log"
+
+
+def build_manifests(tasks: list[list[str]], cwd: Path) -> dict[str, dict[str, object]]:
+    """Build deterministic, per-output-directory run manifests."""
+    grouped: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for task in tasks:
+        parameters = parse_run_parameters(task)
+        output_dir = str(parameters["outputDir"])
+        parameters["logFile"] = str(run_log_path(cwd, task).relative_to(cwd))
+        grouped[output_dir].append(parameters)
+
+    return {
+        output_dir: {
+            "schemaVersion": 1,
+            "workingDirectory": str(cwd),
+            "runs": runs,
+        }
+        for output_dir, runs in sorted(grouped.items())
+    }
+
+
+def write_manifests(tasks: list[list[str]], cwd: Path) -> list[Path]:
+    """Write one manifest before execution and return the created paths."""
+    paths: list[Path] = []
+    for output_dir, manifest in build_manifests(tasks, cwd).items():
+        manifest_path = cwd / output_dir / "run-manifest.json"
+        manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
+        paths.append(manifest_path)
+    return paths
+
+
 def run_command(command: list[str], cwd: Path, dry_run: bool) -> bool:
     printable = " ".join(command)
     if dry_run:
         print(printable)
         return True
 
-    result = subprocess.run(command, cwd=str(cwd), text=True)
+    if "--outputDir=" not in command[-1]:
+        result = subprocess.run(command, cwd=str(cwd), text=True)
+        return result.returncode == 0
+
+    log_path = run_log_path(cwd, command)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    result = subprocess.run(command, cwd=str(cwd), text=True, capture_output=True)
+    log_path.write_text(
+        f"$ {printable}\n\n"
+        f"returncode: {result.returncode}\n\n"
+        f"--- stdout ---\n{result.stdout}\n"
+        f"--- stderr ---\n{result.stderr}"
+    )
     return result.returncode == 0
 
 
@@ -143,6 +215,10 @@ def main() -> int:
         selected_tasks.extend(byzantine_tasks(args.sim_time, args.pkt_rate, output_dir))
 
     print(f"Selected {len(selected_tasks)} run(s)")
+    if not args.dry_run:
+        manifest_paths = write_manifests(selected_tasks, cwd)
+        for manifest_path in manifest_paths:
+            print(f"Wrote run manifest: {manifest_path}")
     failures = run_tasks(selected_tasks, cwd, args.parallel, args.dry_run)
     if failures:
         print(f"Completed with {failures} failed run(s)")
