@@ -1,0 +1,96 @@
+name: ns-3 metric diagnosis
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "ns-allinone-3.29/ns-3.29/scratch/**"
+      - "ns-allinone-3.29/ns-3.29/src/astro-fanet/**"
+      - "paper-reproduction/**"
+      - "tests/**"
+      - ".github/workflows/ns3-diagnostic.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostic:
+    name: Diagnose numeric metrics
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run repository tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Configure Waf compatibility
+        working-directory: ns-allinone-3.29/ns-3.29
+        run: |
+          ./waf --version
+          python - <<'PY'
+          from pathlib import Path
+
+          replacements = 0
+          for path in Path('.').glob('.waf*/waflib/Utils.py'):
+              text = path.read_text()
+              updated = text.replace("open(fname,m)as f", "open(fname,m.replace('U',''))as f")
+              if updated != text:
+                  path.write_text(updated)
+                  replacements += 1
+          print(f"Patched Waf compatibility files: {replacements}")
+          if replacements == 0:
+              raise SystemExit("No generated Waf Utils.py found")
+          PY
+
+      - name: Configure ns-3
+        working-directory: ns-allinone-3.29/ns-3.29
+        run: ./waf configure --disable-werror
+
+      - name: Build ns-3
+        working-directory: ns-allinone-3.29/ns-3.29
+        run: ./waf build -j2
+
+      - name: Run bounded metric diagnostics
+        working-directory: ns-allinone-3.29/ns-3.29
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p results/diagnostic
+          while read -r n_uavs mobility seed sim_time; do
+            label="n${n_uavs}_${mobility}_s${seed}_t${sim_time}"
+            output_dir="results/diagnostic/${label}"
+            log_file="${output_dir}/${label}.console.log"
+            mkdir -p "${output_dir}"
+            echo "=== ${label} ===" | tee "${log_file}"
+            ./waf --run "astro-fanet-sim --protocol=astro --nUavs=${n_uavs} --mobility=${mobility} --seed=${seed} --simTime=${sim_time} --pktRate=1.0 --byzFraction=0.0 --outputDir=${output_dir}" 2>&1 | tee -a "${log_file}"
+          done <<'DIAGNOSTICS'
+          10 gm3d 3001 30
+          20 gm3d 3001 30
+          20 gm3d 3001 60
+          20 rpgm 3001 30
+          DIAGNOSTICS
+
+      - name: Validate and summarize diagnostic CSVs
+        run: >-
+          python paper-reproduction/summarize_a3dbsm_results.py
+          --results-dir ns-allinone-3.29/ns-3.29/results/diagnostic
+          --output paper-reproduction/diagnostic_summary.csv
+
+      - name: Upload diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ns3-metric-diagnostic
+          if-no-files-found: warn
+          path: |
+            ns-allinone-3.29/ns-3.29/results/diagnostic/**
+            ns-allinone-3.29/ns-3.29/build/config.log
+            paper-reproduction/diagnostic_summary.csv
