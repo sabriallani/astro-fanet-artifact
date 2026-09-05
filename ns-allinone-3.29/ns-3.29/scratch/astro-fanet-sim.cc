@@ -25,7 +25,9 @@
 #include "ns3/applications-module.h"
 #include "ns3/flow-monitor-module.h"
 #include "ns3/stats-module.h"
+#ifdef ASTRO_ENABLE_NETANIM
 #include "ns3/netanim-module.h"
+#endif
 #include "ns3/system-path.h"
 
 // ASTRO-FANET module
@@ -678,6 +680,7 @@ main (int argc, char *argv[])
     }
 
   // ---------- Optional NetAnim export ----------
+#ifdef ASTRO_ENABLE_NETANIM
   std::unique_ptr<AnimationInterface> anim;
   std::string animFile;
   std::string routeFile;
@@ -753,6 +756,7 @@ main (int argc, char *argv[])
       anim->UpdateNodeColor (sinkNode.Get (0), 40, 170, 90);
       anim->UpdateNodeSize (sinkNode.Get (0)->GetId (), animSinkSize, animSinkSize);
     }
+#endif  // ASTRO_ENABLE_NETANIM
 
   // ---------- Run simulation ----------
   NS_LOG_INFO ("Starting simulation for " << simTime << " seconds...");
