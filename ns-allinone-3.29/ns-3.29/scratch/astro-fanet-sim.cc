@@ -814,6 +814,7 @@ main (int argc, char *argv[])
     }
 
   // ---------- Output results ----------
+  std::string pdrSource = "app";
   double pdr = g_metrics.GetPDR ();
   double avgDelay = g_metrics.GetAvgDelay ();
   double throughput = g_metrics.GetThroughput (simTime);
@@ -829,6 +830,7 @@ main (int argc, char *argv[])
     {
       g_metrics.totalDelivered = fmDelivered;
       pdr = 100.0 * fmDelivered / (fmDelivered + fmLost);
+      pdrSource = "flowmon";
     }
 
   std::cout << "\n======================================" << std::endl;
@@ -841,6 +843,11 @@ main (int argc, char *argv[])
   std::cout << "Duration:           " << simTime << " s" << std::endl;
   std::cout << "--------------------------------------" << std::endl;
   std::cout << "PDR (%):            " << pdr << std::endl;
+  std::cout << "PDR source:         " << pdrSource << std::endl;
+  std::cout << "Generated (app):    " << g_metrics.totalGenerated << std::endl;
+  std::cout << "Delivered (app):    " << g_metrics.totalDelivered << std::endl;
+  std::cout << "Delivered (FM):     " << fmDelivered << std::endl;
+  std::cout << "Lost (FM):          " << fmLost << std::endl;
   std::cout << "Avg Delay (ms):     " << avgDelay << std::endl;
   std::cout << "Throughput (kbit/s):" << throughput << std::endl;
   std::cout << "Avg AoI (ms):       " << avgAoI << std::endl;
@@ -866,11 +873,14 @@ main (int argc, char *argv[])
   std::ofstream csv (csvFile);
   if (csv.is_open ())
     {
-      csv << "protocol,nUavs,mobility,seed,simTime,pdr,avgDelay,throughput,avgAoI,"
+      csv << "protocol,nUavs,mobility,seed,simTime,pdr,pdr_source,totalGenerated,"
+          << "totalDelivered,flowMonitorDelivered,flowMonitorLost,avgDelay,throughput,avgAoI,"
           << "ctrlOverhead,energyPerBit,brr,broadcasts,suppressed,totalEnergy,byzFraction"
           << std::endl;
       csv << protocol << "," << nUavs << "," << mobility << "," << seed << ","
-          << simTime << "," << pdr << "," << avgDelay << "," << throughput << ","
+          << simTime << "," << pdr << "," << pdrSource << ","
+          << g_metrics.totalGenerated << "," << g_metrics.totalDelivered << ","
+          << fmDelivered << "," << fmLost << "," << avgDelay << "," << throughput << ","
           << avgAoI << "," << ctrlOverhead << "," << energyPerBit << "," << brr << ","
           << g_metrics.totalBroadcasts << "," << g_metrics.suppressedBroadcasts << ","
           << g_metrics.totalEnergyConsumed << "," << byzFraction << std::endl;
