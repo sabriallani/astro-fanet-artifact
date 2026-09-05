@@ -39,6 +39,25 @@ jobs:
       - name: Run repository tests
         run: python -m unittest discover -s tests -v
 
+      - name: Prepare legacy Waf for modern Python
+        working-directory: ns-allinone-3.29/ns-3.29
+        run: |
+          ./waf --version
+          python - <<'PY'
+          from pathlib import Path
+
+          replacements = 0
+          for path in Path('.').glob('.waf*/waflib/Utils.py'):
+              text = path.read_text()
+              updated = text.replace("open(fname,m)as f", "open(fname,m.replace('U',''))as f")
+              if updated != text:
+                  path.write_text(updated)
+                  replacements += 1
+          print(f"Patched Waf compatibility files: {replacements}")
+          if replacements == 0:
+              raise SystemExit("No generated Waf Utils.py found")
+          PY
+
       - name: Configure ns-3
         working-directory: ns-allinone-3.29/ns-3.29
         run: ./waf configure --disable-werror
