@@ -1,0 +1,32 @@
+Waf: Entering directory `/tmp/reference/ns-allinone-3.29/ns-3.29/build'
+Waf: Leaving directory `/tmp/reference/ns-allinone-3.29/ns-3.29/build'
+Build commands will be stored in build/compile_commands.json
+'build' finished successfully (1.718s)
+
+======================================
+ASTRO-FANET Simulation Results
+======================================
+Protocol:           astro
+UAVs:               20
+Mobility:           gm3d
+Seed:               3001
+Duration:           30 s
+--------------------------------------
+PDR (%):            69.1622
+PDR source:         app
+Generated (app):    561
+Delivered (app):    388
+Delivered (FM):     0
+Lost (FM):          0
+Avg Delay (ms):     0.515464
+Throughput (kbit/s):30.9248
+Avg AoI (ms):       1109.11
+Ctrl Overhead (%):  76.2145
+Energy/bit (uJ):    534.047
+BRR:                2312
+Broadcasts:         2312
+Suppressed:         645
+Total energy (J):   495.459
+Byz fraction:       0.2
+======================================
+

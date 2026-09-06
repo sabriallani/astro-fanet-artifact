@@ -1,0 +1,2 @@
+protocol,nUavs,mobility,seed,simTime,pdr,pdr_source,totalGenerated,totalDelivered,flowMonitorDelivered,flowMonitorLost,avgDelay,throughput,avgAoI,ctrlOverhead,energyPerBit,brr,broadcasts,suppressed,totalEnergy,byzFraction
+astro,20,rpgm,3001,30,75.5435,app,552,417,0,0,52.7506,36.6421,1032.39,74.9565,449.945,1696,1696,632,494.608,0.2
