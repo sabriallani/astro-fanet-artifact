@@ -168,6 +168,7 @@ private:
   {
     m_running = true;
     m_socket = Socket::CreateSocket (GetNode (), UdpSocketFactory::GetTypeId ());
+    m_socket->SetAllowBroadcast (true);
     m_socket->Bind ();
     ScheduleNextPacket ();
   }
@@ -215,8 +216,12 @@ private:
 
     pkt->AddHeader (dataHdr);
 
-    // Send
-    m_socket->SendTo (pkt, 0, InetSocketAddress (m_sinkAddr, m_port));
+    // Emergency traffic exercises the A3D-BSM broadcast path; other traffic
+    // remains unicast to the sink for a separate reference path.
+    Ipv4Address destination = dataHdr.GetIsBroadcast ()
+      ? Ipv4Address::GetBroadcast ()
+      : m_sinkAddr;
+    m_socket->SendTo (pkt, 0, InetSocketAddress (destination, m_port));
     g_metrics.totalGenerated++;
     g_metrics.totalDataBytes += pktSize;
 

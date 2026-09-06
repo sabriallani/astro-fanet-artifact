@@ -389,6 +389,9 @@ AstroRoutingProtocol::RouteInput (Ptr<const Packet> p, const Ipv4Header &header,
           m_totalBroadcasts++;
           m_a3dBsm->RecordBroadcast (dataHdr.GetOriginId (), dataHdr.GetSequenceNumber (),
                                      bcastOrig, dataHdr.GetCreationTime ());
+          // A FORWARD decision must produce an actual transmission.  Keep the
+          // UDP and A3D headers intact while updating the relay metadata.
+          BroadcastPacket (p->Copy (), header);
         }
 
       return true;
@@ -725,12 +728,22 @@ AstroRoutingProtocol::BroadcastPacket (Ptr<Packet> packet, const Ipv4Header &hea
   m_totalDataBytes += packet->GetSize ();
   NS_LOG_DEBUG ("Node " << m_nodeId << ": Broadcasting packet");
 
-  // Update data header with current position as previous relay
+  // Update data header with current position as previous relay.  Packets
+  // arriving through RouteInput still contain the UDP header; preserve it
+  // while editing the A3D payload header.
   Vector3D pos = GetCurrentPosition ();
+  UdpHeader udpHeader;
   AstroDataHeader dataHdr;
-  if (packet->PeekHeader (dataHdr))
+  bool hasUdp = packet->RemoveHeader (udpHeader);
+  if (hasUdp && packet->RemoveHeader (dataHdr))
     {
-      packet->RemoveHeader (dataHdr);
+      dataHdr.SetPreviousRelayPos (pos.x, pos.y, pos.z);
+      dataHdr.IncrementHopCount ();
+      packet->AddHeader (dataHdr);
+      packet->AddHeader (udpHeader);
+    }
+  else if (!hasUdp && packet->RemoveHeader (dataHdr))
+    {
       dataHdr.SetPreviousRelayPos (pos.x, pos.y, pos.z);
       dataHdr.IncrementHopCount ();
       packet->AddHeader (dataHdr);
