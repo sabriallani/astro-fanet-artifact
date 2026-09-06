@@ -381,7 +381,8 @@ AstroRoutingProtocol::RouteInput (Ptr<const Packet> p, const Ipv4Header &header,
           // rebroadcast, but a relay that does not make geographic progress
           // toward the sink is never useful for the geocast path.
           if (!IsProgressingRelay (myPos, prevRelay)
-              && !ShouldUseTrustAwareFallback (dataHdr.GetTrafficClass (), prevRelay))
+              && !ShouldUseTrustAwareFallback (dataHdr.GetTrafficClass (), prevRelay,
+                                               dataHdr.GetHopCount ()))
             {
               m_suppressedBroadcasts++;
               NS_LOG_DEBUG ("Node " << m_nodeId
@@ -952,22 +953,18 @@ AstroRoutingProtocol::IsProgressingRelay (const Vector3D &currentPos,
 
 bool
 AstroRoutingProtocol::ShouldUseTrustAwareFallback (TrafficClass trafficClass,
-                                                   const Vector3D &previousRelayPos) const
+                                                   const Vector3D &previousRelayPos,
+                                                   uint32_t hopCount) const
 {
-  // Emergency packets retain relay diversity only at an honest node and only
-  // when no authenticated/trusted neighbor can make geographic progress.
-  if (trafficClass != EMERGENCY || m_trustManager->IsByzantine ())
-    return false;
-
-  const auto trusted = m_trustManager->GetTrustedNeighbors ();
-  for (const auto &pair : m_neighborTable)
+  // Bound relay diversity to the first hop of emergency packets.  This keeps
+  // alternate paths alive when the first progress relay is Byzantine, while
+  // restoring strict progress filtering after the packet has advanced.
+  if (trafficClass == EMERGENCY && hopCount <= 1)
     {
-      if (trusted.find (pair.first) == trusted.end ())
-        continue;
-      if (IsProgressingRelay (pair.second.position, previousRelayPos))
-        return false;
+      (void) previousRelayPos;
+      return true;
     }
-  return true;
+  return false;
 }
 
 double
