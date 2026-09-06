@@ -1,0 +1,130 @@
+name: progress-aware robustness validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - experiment/progress-aware-geocast
+
+permissions:
+  contents: write
+
+jobs:
+  robustness:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout experimental branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run repository tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Prepare reference checkout
+        run: |
+          set -euo pipefail
+          git fetch origin ci/mobile-actions
+          mkdir -p /tmp/reference
+          git archive origin/ci/mobile-actions | tar -x -C /tmp/reference
+
+      - name: Configure Waf compatibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          for root in ns-allinone-3.29/ns-3.29 /tmp/reference/ns-allinone-3.29/ns-3.29; do
+            (cd "$root" && ./waf --version)
+            python - "$root" <<'PY'
+          import sys
+          from pathlib import Path
+          root = Path(sys.argv[1])
+          replacements = 0
+          for path in root.glob('.waf*/waflib/Utils.py'):
+              text = path.read_text()
+              updated = text.replace("open(fname,m)as f", "open(fname,m.replace('U',''))as f")
+              if updated != text:
+                  path.write_text(updated)
+                  replacements += 1
+          print(root, "patched", replacements)
+          if replacements == 0:
+              raise SystemExit(f"No generated Waf Utils.py found in {root}")
+          PY
+          done
+
+      - name: Build reference and experimental variants
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd /tmp/reference/ns-allinone-3.29/ns-3.29 && ./waf configure --disable-werror && ./waf build -j2)
+          (cd ns-allinone-3.29/ns-3.29 && ./waf configure --disable-werror && ./waf build -j2)
+
+      - name: Run robustness matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_variant() {
+            local root="$1"
+            local output="$2"
+            mkdir -p "$root/$output"
+            : > "$root/$output/status.tsv"
+            while read -r n_uavs mobility seed byz; do
+              label="n${n_uavs}_${mobility}_s${seed}_bz${byz}"
+              out_dir="$root/$output/$label"
+              mkdir -p "$out_dir"
+              if (
+                cd "$root"
+                ./waf --run "astro-fanet-sim --protocol=astro --nUavs=${n_uavs} --mobility=${mobility} --seed=${seed} --simTime=30 --pktRate=1.0 --byzFraction=${byz} --outputDir=${output}/${label}"
+              ) > "$out_dir/${label}.console.log" 2>&1; then
+                printf '%s\tOK\n' "$label" >> "$root/$output/status.tsv"
+              else
+                printf '%s\tFAIL\n' "$label" >> "$root/$output/status.tsv"
+              fi
+            done <<'MATRIX'
+          20 rpgm 3004 0.0
+          20 rpgm 3005 0.0
+          20 rpgm 3006 0.0
+          20 gm3d 3001 0.2
+          20 gm3d 3002 0.2
+          20 gm3d 3003 0.2
+          20 rpgm 3001 0.2
+          20 rpgm 3002 0.2
+          20 rpgm 3003 0.2
+          MATRIX
+          }
+          run_variant /tmp/reference/ns-allinone-3.29/ns-3.29 results/robustness-reference
+          run_variant ns-allinone-3.29/ns-3.29 results/robustness-experimental
+
+      - name: Compare robustness results
+        run: |
+          python paper-reproduction/compare_progress_robustness.py \
+            --reference /tmp/reference/ns-allinone-3.29/ns-3.29/results/robustness-reference \
+            --experimental ns-allinone-3.29/ns-3.29/results/robustness-experimental \
+            --output paper-reproduction/progress_robustness_summary.csv
+
+      - name: Publish robustness evidence
+        if: always()
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p /tmp/robustness-publish
+          cp -r ns-allinone-3.29/ns-3.29/results/robustness-experimental /tmp/robustness-publish/ || true
+          cp -r /tmp/reference/ns-allinone-3.29/ns-3.29/results/robustness-reference /tmp/robustness-publish/ || true
+          cp paper-reproduction/progress_robustness_summary.csv /tmp/robustness-publish/ || true
+          git checkout --orphan robustness-validation-publish
+          git rm -rf . >/dev/null 2>&1 || true
+          mkdir -p published-results
+          cp -r /tmp/robustness-publish/. published-results/ || true
+          printf '%s\n' "${GITHUB_SHA}" > published-results/source_commit.txt
+          git add published-results
+          git commit -m "Publish progress-aware robustness validation [skip ci]"
+          git push origin HEAD:robustness-validation --force
