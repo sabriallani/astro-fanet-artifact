@@ -273,6 +273,13 @@ private:
    * Estimate link quality to a neighbor (based on distance and SNR model).
    */
   double EstimateLinkQuality (const Vector3D &neighborPos) const;
+
+  /**
+   * Experimental progress-aware guard: true only when the current relay is
+   * strictly closer to the modeled sink position than the previous relay.
+   */
+  bool IsProgressingRelay (const Vector3D &currentPos,
+                           const Vector3D &previousRelayPos) const;
 };
 
 } // namespace astro

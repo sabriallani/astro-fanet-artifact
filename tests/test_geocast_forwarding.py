@@ -33,6 +33,14 @@ class GeocastForwardingTests(unittest.TestCase):
         self.assertIn("dataHdr.GetSequenceNumber ()", text)
         self.assertIn("alreadyDelivered", text)
 
+    def test_progress_aware_guard_runs_before_rebroadcast(self):
+        text = ROUTING.read_text()
+        self.assertIn("IsProgressingRelay", text)
+        decision = text.index("AstroAction bcastDecision")
+        rebroadcast = text.index("BroadcastPacket (p->Copy (), header)", decision)
+        guard = text.index("IsProgressingRelay", decision)
+        self.assertLess(guard, rebroadcast)
+
 
 if __name__ == "__main__":
     unittest.main()

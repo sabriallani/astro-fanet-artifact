@@ -377,6 +377,17 @@ AstroRoutingProtocol::RouteInput (Ptr<const Packet> p, const Ipv4Header &header,
             dataHdr.GetTrafficClass (), myPos, bcastOrig, prevRelay,
             m_currentEmbedding, density, mobGrad, bcastFeatures);
 
+          // Experimental progress-aware guard.  A3D-BSM may select a
+          // rebroadcast, but a relay that does not make geographic progress
+          // toward the sink is never useful for the geocast path.
+          if (!IsProgressingRelay (myPos, prevRelay))
+            {
+              m_suppressedBroadcasts++;
+              NS_LOG_DEBUG ("Node " << m_nodeId
+                           << " suppressed non-progressing relay");
+              return true;
+            }
+
           if (bcastDecision == ACTION_SUPPRESS)
             {
               m_suppressedBroadcasts++;
@@ -921,6 +932,21 @@ AstroRoutingProtocol::EstimateLinkQuality (const Vector3D &neighborPos) const
   // SNR decreases with distance; quality = 1 at dist=0, 0 at dist=R_max
   double quality = std::max (0.0, 1.0 - dist / 400.0);
   return quality;
+}
+
+bool
+AstroRoutingProtocol::IsProgressingRelay (const Vector3D &currentPos,
+                                           const Vector3D &previousRelayPos) const
+{
+  constexpr double sinkX = 1000.0;
+  constexpr double sinkY = 1000.0;
+  constexpr double sinkZ = 50.0;
+  const auto distanceToSink = [sinkX, sinkY, sinkZ] (const Vector3D &pos) {
+    return std::sqrt (std::pow (pos.x - sinkX, 2) +
+                      std::pow (pos.y - sinkY, 2) +
+                      std::pow (pos.z - sinkZ, 2));
+  };
+  return distanceToSink (currentPos) + 1e-9 < distanceToSink (previousRelayPos);
 }
 
 double
