@@ -127,3 +127,30 @@ Final experimental decision: **retain the branch and evidence, do not promote
 this exact guard, and do not use it to claim universal robustness**. A future
 candidate would need trust-aware fallback or relay diversity, followed by the
 same paired validation matrix.
+
+## Second candidate: trust-aware emergency fallback
+
+The first fallback was refined so that a non-progressing relay could forward an
+`EMERGENCY` packet only when the local node was honest and no authenticated
+trusted neighbor known in the beacon table could make geographic progress from
+the previous relay position. Ordinary packets remained strictly
+progress-aware.
+
+The implementation passed the local regression suite (`24` tests) and the
+GitHub Actions compilation and smoke validation. The paired validation used
+distinct reference and experimental binaries; its source commit was
+`3a864385f7f6ce28a4d7eda49edd08d4da144317`.
+
+| Scenario | Reference PDR | Candidate PDR | Difference |
+|---|---:|---:|---:|
+| 10 UAV GM3D, nominal, 3 runs | 67.3739% | 83.4403% | +16.0664 pp |
+| 20 UAV GM3D, nominal, 3 runs | 50.2935% | 61.4475% | +11.1540 pp |
+| 20 UAV RPGM, nominal, 2 valid runs | 57.7508% | 57.5821% | -0.1687 pp |
+| 20 UAV GM3D, Byzantine 0.2, 3 runs | 65.5403% | 47.8255% | -17.7148 pp |
+| 20 UAV RPGM, Byzantine 0.2, 2 valid runs | 59.7154% | 62.6814% | +2.9659 pp |
+
+The common `20 UAV RPGM, seed 3003` Byzantine failure remained present in both
+variants and was not used in either mean. The candidate reduces broadcasts and
+delay, but the GM3D Byzantine regression remains a decisive blocker. The
+candidate is therefore retained as an experimental analysis only and is not
+promoted to `main` or described as a robust improvement.
