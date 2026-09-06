@@ -280,6 +280,10 @@ private:
    */
   bool IsProgressingRelay (const Vector3D &currentPos,
                            const Vector3D &previousRelayPos) const;
+
+  // Preserve emergency relay diversity when strict geographic progress would
+  // otherwise remove the only alternate path around a Byzantine relay.
+  bool ShouldUseTrustAwareFallback (TrafficClass trafficClass) const;
 };
 
 } // namespace astro

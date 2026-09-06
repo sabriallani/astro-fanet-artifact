@@ -380,7 +380,8 @@ AstroRoutingProtocol::RouteInput (Ptr<const Packet> p, const Ipv4Header &header,
           // Experimental progress-aware guard.  A3D-BSM may select a
           // rebroadcast, but a relay that does not make geographic progress
           // toward the sink is never useful for the geocast path.
-          if (!IsProgressingRelay (myPos, prevRelay))
+          if (!IsProgressingRelay (myPos, prevRelay)
+              && !ShouldUseTrustAwareFallback (dataHdr.GetTrafficClass ()))
             {
               m_suppressedBroadcasts++;
               NS_LOG_DEBUG ("Node " << m_nodeId
@@ -947,6 +948,15 @@ AstroRoutingProtocol::IsProgressingRelay (const Vector3D &currentPos,
                       std::pow (pos.z - sinkZ, 2));
   };
   return distanceToSink (currentPos) + 1e-9 < distanceToSink (previousRelayPos);
+}
+
+bool
+AstroRoutingProtocol::ShouldUseTrustAwareFallback (TrafficClass trafficClass) const
+{
+  // Emergency packets retain relay diversity only at an honest node.  This is
+  // intentionally narrow: ordinary traffic remains strictly progress-aware,
+  // while a Byzantine node cannot use the fallback to amplify broadcasts.
+  return trafficClass == EMERGENCY && !m_trustManager->IsByzantine ();
 }
 
 double
