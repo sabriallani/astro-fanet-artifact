@@ -154,3 +154,28 @@ variants and was not used in either mean. The candidate reduces broadcasts and
 delay, but the GM3D Byzantine regression remains a decisive blocker. The
 candidate is therefore retained as an experimental analysis only and is not
 promoted to `main` or described as a robust improvement.
+
+## Final bounded-diversity candidate
+
+The fallback was finally bounded to the first two hops of `EMERGENCY` packets.
+After hop two, strict geographic progress filtering is restored. This reduces
+the chance that an early Byzantine relay eliminates the only usable branch
+without turning the whole route into a broadcast flood.
+
+The final candidate was validated with `24` local tests, successful CI
+compilation, smoke validation, paired validation, and the robustness matrix.
+
+| Scenario | Reference PDR | Two-hop candidate PDR | Difference |
+|---|---:|---:|---:|
+| 10 UAV GM3D, nominal, 3 runs | 67.3739% | 73.5345% | +6.1606 pp |
+| 20 UAV GM3D, nominal, 3 runs | 50.2935% | 53.2776% | +2.9841 pp |
+| 20 UAV RPGM, nominal, 2 valid runs | 57.7508% | 55.0156% | -2.7352 pp |
+| 20 UAV GM3D, Byzantine 0.2, 3 runs | 65.5403% | 59.9405% | -5.5998 pp |
+| 20 UAV RPGM, Byzantine 0.2, 2 valid runs | 59.7154% | 60.3495% | +0.6341 pp |
+
+Compared with the unrestricted progress-aware guard, the two-hop bound removes
+most of the GM3D Byzantine regression and preserves the RPGM Byzantine result.
+It does not completely eliminate the GM3D Byzantine gap, so it remains a
+conditional experimental result rather than a universal robust improvement.
+The common RPGM seed `3003` failure remains identical in reference and
+experimental runs and is retained as an explicit limitation.
