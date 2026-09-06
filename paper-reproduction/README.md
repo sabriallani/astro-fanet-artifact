@@ -71,6 +71,28 @@ manuscript.
 
 See `reproducibility_status.md` for the coverage matrix.
 
+## Final paired and robustness validation
+
+The final paper revision uses the published reference/experimental validation
+artifacts under `paper-reproduction/final-results/` and the generated outputs
+under `paper-reproduction/final-artifacts/`. Regenerate the tables, vector plots,
+and English interpretation with:
+
+```bash
+python3 paper-reproduction/generate_final_artifacts.py
+```
+
+The archive includes the paired and robustness CSV summaries, per-run CSV files,
+status manifests, console logs, source commits, SVG figures for GitHub viewing,
+and PDF figures used by the manuscript. The common 20-UAV RPGM seed `3003`
+failure is preserved as `FAIL` in both variants and is excluded from numerical
+means rather than being silently repaired.
+
+The final candidate is an experimental branch variant: progress-aware forwarding
+with bounded Emergency-relay diversity during the first two hops. It is not
+promoted to `main` and is not described as universally Byzantine-robust.
+
+
 ## Recommended Wording For The Manuscript
 
 Use language such as:

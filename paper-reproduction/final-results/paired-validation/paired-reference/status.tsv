@@ -1,0 +1,9 @@
+n10_gm3d_s3001	/tmp/reference/ns-allinone-3.29/ns-3.29	OK
+n10_gm3d_s3002	/tmp/reference/ns-allinone-3.29/ns-3.29	OK
+n10_gm3d_s3003	/tmp/reference/ns-allinone-3.29/ns-3.29	OK
+n20_gm3d_s3001	/tmp/reference/ns-allinone-3.29/ns-3.29	OK
+n20_gm3d_s3002	/tmp/reference/ns-allinone-3.29/ns-3.29	OK
+n20_gm3d_s3003	/tmp/reference/ns-allinone-3.29/ns-3.29	OK
+n20_rpgm_s3001	/tmp/reference/ns-allinone-3.29/ns-3.29	OK
+n20_rpgm_s3002	/tmp/reference/ns-allinone-3.29/ns-3.29	OK
+n20_rpgm_s3003	/tmp/reference/ns-allinone-3.29/ns-3.29	FAIL

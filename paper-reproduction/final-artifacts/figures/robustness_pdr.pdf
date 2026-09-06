@@ -1,0 +1,70 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 720 420] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 1070 >>
+stream
+BT /F1 14 Tf 250 395 Td (Robustness validation: PDR) Tj ET
+0.8 w
+0.85 0.85 0.85 RG 70 58.0 m 695 58.0 l S
+0 0 0 RG BT /F1 8 Tf 42 55.0 Td (0) Tj ET
+0.85 0.85 0.85 RG 70 120.8 m 695 120.8 l S
+0 0 0 RG BT /F1 8 Tf 42 117.8 Td (20) Tj ET
+0.85 0.85 0.85 RG 70 183.6 m 695 183.6 l S
+0 0 0 RG BT /F1 8 Tf 42 180.6 Td (40) Tj ET
+0.85 0.85 0.85 RG 70 246.4 m 695 246.4 l S
+0 0 0 RG BT /F1 8 Tf 42 243.4 Td (60) Tj ET
+0.85 0.85 0.85 RG 70 309.2 m 695 309.2 l S
+0 0 0 RG BT /F1 8 Tf 42 306.2 Td (80) Tj ET
+0.85 0.85 0.85 RG 70 372.0 m 695 372.0 l S
+0 0 0 RG BT /F1 8 Tf 42 369.0 Td (100) Tj ET
+0 0 0 RG 70 58 m 70 372 l S
+70 58 m 695 58 l S
+BT /F1 8 Tf 60.0 40 Td (20 GM3D
+Byz) Tj ET
+BT /F1 8 Tf 372.5 40 Td (20 RPGM
+Nominal) Tj ET
+BT /F1 8 Tf 685.0 40 Td (20 RPGM
+Byz) Tj ET
+BT /F1 9 Tf 12 175 Td 0 0 Td (PDR (%)) Tj ET
+0.298 0.471 0.659 RG 2 w
+70.0 263.8 m
+382.5 143.1 l
+695.0 245.5 l
+S
+68.0 261.8 4 4 re f
+380.5 141.1 4 4 re f
+693.0 243.5 4 4 re f
+0.894 0.341 0.337 RG 2 w
+70.0 246.2 m
+382.5 172.1 l
+695.0 247.5 l
+S
+68.0 244.2 4 4 re f
+380.5 170.1 4 4 re f
+693.0 245.5 4 4 re f
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000001363 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1433
+%%EOF

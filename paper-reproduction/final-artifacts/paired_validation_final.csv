@@ -1,0 +1,4 @@
+nUavs,mobility,runs_reference,runs_experimental,reference_pdr_mean,experimental_pdr_mean,reference_pdr_ci95,experimental_pdr_ci95,reference_avgDelay_mean,experimental_avgDelay_mean,reference_avgDelay_ci95,experimental_avgDelay_ci95,reference_broadcasts_mean,experimental_broadcasts_mean,reference_suppressed_mean,experimental_suppressed_mean,pdr_difference_pp,delay_difference,broadcast_difference
+10,gm3d,3,3,67.373900,73.534500,4.098599,11.064786,0.305756,0.299864,0.066854,0.077872,673.333333,672.666667,339.333333,339.666667,6.160600,-0.005892,-0.666666
+20,gm3d,3,3,50.293467,53.277600,6.162826,2.252778,0.429012,0.398978,0.168828,0.120648,2453.333333,2453.333333,642.000000,642.666667,2.984133,-0.030034,0.000000
+20,rpgm,2,2,57.750800,55.015600,18.084528,2.236556,5.535595,7.203660,4.412891,1.909863,1980.000000,1997.000000,630.000000,631.500000,-2.735200,1.668065,17.000000

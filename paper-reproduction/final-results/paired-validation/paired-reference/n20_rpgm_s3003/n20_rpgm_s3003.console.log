@@ -1,0 +1,7 @@
+Waf: Entering directory `/tmp/reference/ns-allinone-3.29/ns-3.29/build'
+Waf: Leaving directory `/tmp/reference/ns-allinone-3.29/ns-3.29/build'
+Build commands will be stored in build/compile_commands.json
+'build' finished successfully (2.316s)
+assert failed. cond="m_current >= m_dataStart && m_current < m_dataEnd", msg="You have attempted to read beyond the bounds of the available buffer space. This usually indicates that a Header::Deserialize or Trailer::Deserialize method is trying to read data which was not written by a Header::Serialize or Trailer::Serialize method. In short: check the code of your Serialize and Deserialize methods.", file=./ns3/buffer.h, line=1000
+terminate called without an active exception
+Command ['/tmp/reference/ns-allinone-3.29/ns-3.29/build/scratch/astro-fanet-sim', '--protocol=astro', '--nUavs=20', '--mobility=rpgm', '--seed=3003', '--simTime=30', '--pktRate=1.0', '--byzFraction=0.0', '--outputDir=results/paired-reference/n20_rpgm_s3003'] terminated with signal SIGIOT. Run it under a debugger to get more information (./waf --run <program> --command-template="gdb --args %s <args>").
