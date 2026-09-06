@@ -3,6 +3,7 @@
 #include "ns3/log.h"
 #include "ns3/simulator.h"
 #include "ns3/udp-socket-factory.h"
+#include "ns3/udp-header.h"
 #include "ns3/inet-socket-address.h"
 #include "ns3/boolean.h"
 #include "ns3/uinteger.h"
@@ -332,8 +333,11 @@ AstroRoutingProtocol::RouteInput (Ptr<const Packet> p, const Ipv4Header &header,
 
       // Now check if this is a data broadcast (has AstroDataHeader) for A3D-BSM
       Ptr<Packet> pCopy = p->Copy ();
+      UdpHeader udpHeader;
       AstroDataHeader dataHdr;
-      if (pCopy->PeekHeader (dataHdr) && dataHdr.GetOriginId () > 0)
+      if (pCopy->RemoveHeader (udpHeader)
+          && pCopy->PeekHeader (dataHdr)
+          && dataHdr.GetOriginId () > 0)
         {
           // Duplicate check for data broadcasts
           auto pktId = std::make_pair (dataHdr.GetOriginId (), dataHdr.GetSequenceNumber ());
@@ -385,6 +389,9 @@ AstroRoutingProtocol::RouteInput (Ptr<const Packet> p, const Ipv4Header &header,
           m_totalBroadcasts++;
           m_a3dBsm->RecordBroadcast (dataHdr.GetOriginId (), dataHdr.GetSequenceNumber (),
                                      bcastOrig, dataHdr.GetCreationTime ());
+          // A FORWARD decision must produce an actual transmission.  Keep the
+          // UDP and A3D headers intact while updating the relay metadata.
+          BroadcastPacket (p->Copy (), header);
         }
 
       return true;
@@ -721,12 +728,22 @@ AstroRoutingProtocol::BroadcastPacket (Ptr<Packet> packet, const Ipv4Header &hea
   m_totalDataBytes += packet->GetSize ();
   NS_LOG_DEBUG ("Node " << m_nodeId << ": Broadcasting packet");
 
-  // Update data header with current position as previous relay
+  // Update data header with current position as previous relay.  Packets
+  // arriving through RouteInput still contain the UDP header; preserve it
+  // while editing the A3D payload header.
   Vector3D pos = GetCurrentPosition ();
+  UdpHeader udpHeader;
   AstroDataHeader dataHdr;
-  if (packet->PeekHeader (dataHdr))
+  bool hasUdp = packet->RemoveHeader (udpHeader);
+  if (hasUdp && packet->RemoveHeader (dataHdr))
     {
-      packet->RemoveHeader (dataHdr);
+      dataHdr.SetPreviousRelayPos (pos.x, pos.y, pos.z);
+      dataHdr.IncrementHopCount ();
+      packet->AddHeader (dataHdr);
+      packet->AddHeader (udpHeader);
+    }
+  else if (!hasUdp && packet->RemoveHeader (dataHdr))
+    {
       dataHdr.SetPreviousRelayPos (pos.x, pos.y, pos.z);
       dataHdr.IncrementHopCount ();
       packet->AddHeader (dataHdr);
