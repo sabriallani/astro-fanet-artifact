@@ -27,6 +27,12 @@ class GeocastForwardingTests(unittest.TestCase):
         self.assertIn("AddHeader (udpHeader)", text)
         self.assertIn("SetPreviousRelayPos", text)
 
+    def test_sink_pdr_counts_unique_origin_sequence_pairs(self):
+        text = SCENARIO.read_text()
+        self.assertIn("std::set<std::pair<uint32_t, uint32_t>>", text)
+        self.assertIn("dataHdr.GetSequenceNumber ()", text)
+        self.assertIn("alreadyDelivered", text)
+
 
 if __name__ == "__main__":
     unittest.main()

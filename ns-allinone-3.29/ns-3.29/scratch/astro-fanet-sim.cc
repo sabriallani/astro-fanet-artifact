@@ -43,6 +43,7 @@
 #include <cmath>
 #include <vector>
 #include <map>
+#include <set>
 #include <numeric>
 #include <memory>
 
@@ -112,6 +113,7 @@ struct SimulationMetrics
 static SimulationMetrics g_metrics;
 static std::map<uint64_t, Time> g_packetCreationTimes;
 static std::map<uint32_t, Time> g_lastDeliveryPerSource;
+static std::set<std::pair<uint32_t, uint32_t>> g_deliveredPackets;
 static uint64_t g_packetUid = 0;
 
 void
@@ -122,8 +124,13 @@ PacketGenerated (uint32_t nodeId, uint32_t pktSize)
 }
 
 void
-PacketDelivered (uint32_t nodeId, uint32_t pktSize, double delayMs)
+PacketDelivered (uint32_t nodeId, uint32_t sequenceNumber, uint32_t pktSize, double delayMs)
 {
+  auto alreadyDelivered = g_deliveredPackets.insert ({nodeId, sequenceNumber});
+  if (!alreadyDelivered.second)
+    {
+      return;
+    }
   g_metrics.totalDelivered++;
   g_metrics.delays.push_back (delayMs);
   g_metrics.totalUsefulBits += pktSize * 8.0;
@@ -282,7 +289,8 @@ private:
         if (pkt->RemoveHeader (dataHdr))
           {
             double delay = (Simulator::Now () - dataHdr.GetCreationTime ()).GetMilliSeconds ();
-            PacketDelivered (dataHdr.GetOriginId (), pkt->GetSize (), delay);
+            PacketDelivered (dataHdr.GetOriginId (), dataHdr.GetSequenceNumber (),
+                             pkt->GetSize (), delay);
           }
       }
   }
