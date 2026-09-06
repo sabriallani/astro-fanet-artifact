@@ -101,3 +101,29 @@ confirmed improvement for RPGM. It supports a conditional claim about
 progress-aware suppression under GM3D, not a universal claim across mobility
 models. The common RPGM seed failure must be fixed or explicitly excluded from
 future campaign design before final publication figures are generated.
+
+## Robustness and Byzantine validation
+
+A second paired matrix tested three additional nominal RPGM seeds and three
+seeds for each of GM3D and RPGM with a Byzantine fraction of `0.2`.
+
+| Scenario | Reference PDR | Experimental PDR | Difference |
+|---|---:|---:|---:|
+| 20 UAV RPGM, nominal, 3 new runs | 27.0917% | 46.4939% | +19.4022 pp |
+| 20 UAV GM3D, Byzantine 0.2, 3 runs | 65.5403% | 47.0879% | -18.4524 pp |
+| 20 UAV RPGM, Byzantine 0.2, 2 valid runs | 59.7154% | 75.3870% | +15.6716 pp |
+
+The `20 UAV RPGM, seed 3003` Byzantine run failed identically in both variants
+with the same ns-3 buffer assertion and was excluded. All other robustness
+runs completed and produced valid CSVs.
+
+The Byzantine GM3D regression is a promotion blocker. It shows that the simple
+strict-progress guard is not sufficient as an insider-resilient policy: under
+some topologies it can remove alternate relays that are needed when a forward
+relay is Byzantine. The current progress-aware guard must therefore remain an
+experimental result and must not be merged into the principal algorithm.
+
+Final experimental decision: **retain the branch and evidence, do not promote
+this exact guard, and do not use it to claim universal robustness**. A future
+candidate would need trust-aware fallback or relay diversity, followed by the
+same paired validation matrix.
