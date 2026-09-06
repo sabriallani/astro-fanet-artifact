@@ -1,0 +1,4 @@
+protocol,nUavs,mobility,byzFraction,runs,pdr_mean,pdr_ci95,brr_mean,brr_ci95,avgDelay_mean,avgDelay_ci95,ctrlOverhead_mean,ctrlOverhead_ci95,broadcasts_mean,broadcasts_ci95,suppressed_mean,suppressed_ci95
+astro,10,gm3d,0,1,71.5328,0,680,0,0.357143,0,76.6096,0,680,0,336,0
+astro,20,gm3d,0,2,52.4089,6.8263,3482,12706,0.335955,1.27658,75.5466,9.41896,3482,12706,944.5,3792.74
+astro,20,rpgm,0,1,53.8745,0,1956,0,8.17808,0,75.9027,0,1956,0,632,0
