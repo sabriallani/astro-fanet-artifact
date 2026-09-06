@@ -956,10 +956,10 @@ AstroRoutingProtocol::ShouldUseTrustAwareFallback (TrafficClass trafficClass,
                                                    const Vector3D &previousRelayPos,
                                                    uint32_t hopCount) const
 {
-  // Bound relay diversity to the first hop of emergency packets.  This keeps
-  // alternate paths alive when the first progress relay is Byzantine, while
-  // restoring strict progress filtering after the packet has advanced.
-  if (trafficClass == EMERGENCY && hopCount <= 1)
+  // Bound relay diversity to the first two hops of emergency packets.  This
+  // keeps alternate paths alive when an early progress relay is Byzantine,
+  // while restoring strict progress filtering after the packet has advanced.
+  if (trafficClass == EMERGENCY && hopCount <= 2)
     {
       (void) previousRelayPos;
       return true;

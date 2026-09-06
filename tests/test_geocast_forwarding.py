@@ -45,7 +45,7 @@ class GeocastForwardingTests(unittest.TestCase):
         text = ROUTING.read_text()
         self.assertIn("ShouldUseTrustAwareFallback", text)
         self.assertIn("GetHopCount ()", text)
-        self.assertIn("<= 1", text)
+        self.assertIn("<= 2", text)
         guard = text.index("if (!IsProgressingRelay")
         fallback = text.index("ShouldUseTrustAwareFallback", guard)
         self.assertLess(fallback, guard + 500)
