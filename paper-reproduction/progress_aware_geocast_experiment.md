@@ -72,3 +72,32 @@ Promotion is justified only if the advantage persists without unacceptable
 rebroadcast or overhead cost.
 
 No manuscript text or paper claims were changed by this experiment.
+
+## Paired validation extension
+
+A paired GitHub Actions validation ran the reference and experimental branches
+with identical seeds and settings:
+
+- 10 UAV GM3D, seeds 3001--3003;
+- 20 UAV GM3D, seeds 3001--3003;
+- 20 UAV RPGM, seeds 3001--3003.
+
+Eight paired runs produced valid CSV results. The `20 UAV RPGM, seed 3003`
+run failed identically in both variants with the ns-3 buffer deserialization
+assertion `m_current >= m_dataStart && m_current < m_dataEnd`; it is a shared
+scenario failure, not an experimental-versus-reference difference, and is not
+included in the means.
+
+Paired means over valid runs:
+
+| Scenario | Reference PDR | Experimental PDR | Difference |
+|---|---:|---:|---:|
+| 10 UAV GM3D (3 runs) | 67.3739% | 83.4403% | +16.0664 pp |
+| 20 UAV GM3D (3 runs) | 50.2935% | 60.0875% | +9.7940 pp |
+| 20 UAV RPGM (2 valid runs) | 57.7508% | 55.2759% | -2.4750 pp |
+
+The paired validation confirms a positive effect for both GM3D cases and no
+confirmed improvement for RPGM. It supports a conditional claim about
+progress-aware suppression under GM3D, not a universal claim across mobility
+models. The common RPGM seed failure must be fixed or explicitly excluded from
+future campaign design before final publication figures are generated.
