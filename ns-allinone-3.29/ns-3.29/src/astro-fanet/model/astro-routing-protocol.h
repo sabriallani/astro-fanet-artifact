@@ -24,6 +24,7 @@
 #include "mappo-agent.h"
 #include "a3d-bsm.h"
 #include "trust-manager.h"
+#include "broadcast-baselines.h"
 
 #include <map>
 #include <set>
@@ -115,6 +116,14 @@ public:
   // Byzantine simulation
   void SetByzantine (bool isByz, double dropRate = 0.5);
 
+  // ---- Broadcast-suppression baseline selection ----
+  // BASELINE_NONE keeps the A3D-BSM decision rule (the contribution).
+  void SetBaselineMode (BroadcastBaseline mode) { m_baseline.SetMode (mode); }
+  BroadcastBaseline GetBaselineMode () const { return m_baseline.GetMode (); }
+  bool IsAstroMode () const { return !m_baseline.IsActive (); }
+  void SetBaselineCommRange (double range) { m_baseline.SetCommRange (range); }
+  void AssignBaselineStreams (int64_t stream) { m_baseline.AssignStreams (stream); }
+
   // Statistics getters
   uint32_t GetTotalPacketsSent () const { return m_totalPacketsSent; }
   uint32_t GetTotalPacketsReceived () const { return m_totalPacketsReceived; }
@@ -125,6 +134,39 @@ public:
   uint64_t GetTotalDataBytes () const { return m_totalDataBytes; }
   double GetAverageDelay () const;
   double GetBroadcastRedundancyRatio () const;
+
+  // ---- Metrics required by the manuscript but previously unmeasured ----
+  // Every reception of a data broadcast, duplicates included.  Denominator of
+  // the redundancy ratio RR.
+  uint32_t GetDataReceptions () const { return m_dataReceptions; }
+  // Receptions that were duplicates of an already-seen packet.  A duplicate is
+  // a transmission that carried no new information to this node.
+  uint32_t GetDuplicateReceptions () const { return m_duplicateReceptions; }
+  // Distinct data broadcasts this node saw at least once.
+  uint32_t GetUniquePacketsSeen () const { return m_uniquePacketsSeen; }
+  // Dedicated rebroadcast decisions; unlike m_suppressedBroadcasts these are
+  // never incremented by ExecuteAction().
+  uint32_t GetRebroadcasts () const { return m_rebroadcasts; }
+  uint32_t GetRebroadcastSuppressions () const { return m_rebroadcastSuppressions; }
+  double GetSavedRebroadcastRatio () const
+  {
+    uint32_t decisions = m_rebroadcasts + m_rebroadcastSuppressions;
+    return decisions ? 100.0 * m_rebroadcastSuppressions / decisions : 0.0;
+  }
+  // Emergency broadcasts this node forwarded / suppressed.  Used to test the
+  // priority-preservation theorem empirically: a conforming node must never
+  // suppress a fresh emergency broadcast.
+  uint32_t GetEmergencyForwarded () const { return m_emergencyForwarded; }
+  uint32_t GetEmergencySuppressed () const { return m_emergencySuppressed; }
+  double GetEmergencyNonSuppressionRate () const
+  {
+    uint32_t decisions = m_emergencyForwarded + m_emergencySuppressed;
+    return decisions ? 100.0 * m_emergencyForwarded / decisions : 0.0;
+  }
+  // Sum of hop counts of packets this node relayed, and the relay count, so a
+  // campaign can report the mean broadcast path length BL.
+  uint64_t GetRelayedHopSum () const { return m_relayedHopSum; }
+  uint32_t GetRelayedPackets () const { return m_relayedPackets; }
 
   // Metrics output
   void PrintMetrics (Ptr<OutputStreamWrapper> stream) const;
@@ -180,6 +222,20 @@ private:
   uint64_t m_totalControlBytes;
   uint64_t m_totalDataBytes;
   std::vector<double> m_deliveryDelays;
+
+  // ---- Suppression-quality instrumentation ----
+  uint32_t m_dataReceptions;
+  uint32_t m_duplicateReceptions;
+  uint32_t m_uniquePacketsSeen;
+  uint32_t m_rebroadcasts;
+  uint32_t m_rebroadcastSuppressions;
+  uint32_t m_emergencyForwarded;
+  uint32_t m_emergencySuppressed;
+  uint64_t m_relayedHopSum;
+  uint32_t m_relayedPackets;
+
+  // ---- Classical broadcast-suppression baselines ----
+  BroadcastBaselineEngine m_baseline;
 
   // ---- Duplicate detection ----
   std::set<std::pair<uint32_t, uint32_t>> m_seenPackets;  // (originId, seqNo)
@@ -273,6 +329,16 @@ private:
    * Estimate link quality to a neighbor (based on distance and SNR model).
    */
   double EstimateLinkQuality (const Vector3D &neighborPos) const;
+
+
+  /**
+   * Deferred baseline decision (CB, SBA), invoked when the random assessment
+   * delay expires.  Rebroadcasts or records a suppression accordingly.
+   */
+  void BaselineDeferredDecision (Ptr<Packet> packet, Ipv4Header header,
+                                 uint32_t originId, uint32_t sequenceNumber,
+                                 TrafficClass trafficClass,
+                                 Vector3D previousRelayPos);
 };
 
 } // namespace astro
