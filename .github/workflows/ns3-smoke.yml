@@ -2,16 +2,17 @@ name: ns-3 smoke validation
 
 on:
   workflow_dispatch:
-  pull_request:
+  push:
+    branches:
+      - main
+      - "revision/**"
+      - experiment/progress-aware-geocast
     paths:
       - "ns-allinone-3.29/ns-3.29/**"
       - "paper-reproduction/**"
       - "tests/**"
       - ".github/workflows/ns3-smoke.yml"
-  push:
-    branches:
-      - main
-      - "revision/**"
+  pull_request:
     paths:
       - "ns-allinone-3.29/ns-3.29/**"
       - "paper-reproduction/**"
