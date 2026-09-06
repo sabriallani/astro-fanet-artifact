@@ -41,11 +41,11 @@ class GeocastForwardingTests(unittest.TestCase):
         guard = text.index("IsProgressingRelay", decision)
         self.assertLess(guard, rebroadcast)
 
-    def test_trust_aware_emergency_fallback_exists_before_progress_suppression(self):
+    def test_trust_aware_emergency_fallback_requires_no_trusted_progressing_neighbor(self):
         text = ROUTING.read_text()
         self.assertIn("ShouldUseTrustAwareFallback", text)
-        self.assertIn("dataHdr.GetTrafficClass ()", text)
-        self.assertIn("m_trustManager->IsByzantine ()", text)
+        self.assertIn("GetTrustedNeighbors", text)
+        self.assertIn("previousRelayPos", text)
         guard = text.index("if (!IsProgressingRelay")
         fallback = text.index("ShouldUseTrustAwareFallback", guard)
         self.assertLess(fallback, guard + 500)

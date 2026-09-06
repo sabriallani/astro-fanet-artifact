@@ -283,7 +283,8 @@ private:
 
   // Preserve emergency relay diversity when strict geographic progress would
   // otherwise remove the only alternate path around a Byzantine relay.
-  bool ShouldUseTrustAwareFallback (TrafficClass trafficClass) const;
+  bool ShouldUseTrustAwareFallback (TrafficClass trafficClass,
+                                    const Vector3D &previousRelayPos) const;
 };
 
 } // namespace astro
