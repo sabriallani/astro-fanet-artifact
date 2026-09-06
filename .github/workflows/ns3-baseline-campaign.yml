@@ -7,10 +7,8 @@ name: baseline comparison campaign
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - experiment/baseline-comparison-v2
-
+  # The 100-run campaign is intentionally manual after the source commit;
+  # evidence-only commits must not launch another expensive matrix.
 permissions:
   contents: write
 

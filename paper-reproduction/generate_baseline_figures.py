@@ -107,6 +107,10 @@ def nice_bounds(series: dict, cap: float | None = None):
         return 0.0, 1.0, 0.5
     lo, hi = min(values), max(values)
     lo = min(0.0, lo)
+    if cap is not None:
+        # Bounded percentage metrics must never expose a negative axis caused
+        # solely by a confidence interval around a zero mean.
+        lo = max(0.0, lo)
     if hi <= lo:
         hi = lo + 1.0
     hi *= 1.12
@@ -325,8 +329,11 @@ def main() -> int:
         if not series:
             print(f"SKIP {metric}: no data in summary")
             continue
-        # PDR and ENSR are bounded percentages; the rest are unbounded.
-        cap = 100.0 if metric in ("pdr", "emergencyNonSuppressionRate") else None
+        # Percentage metrics are bounded by the protocol definition.
+        cap = 100.0 if metric in (
+            "pdr", "redundancyRatio", "savedRebroadcastRatio",
+            "emergencyNonSuppressionRate",
+        ) else None
         svg_grouped_bars(args.figures / f"{stem}.svg", title, labels, series, ylabel, cap)
         pdf_grouped_bars(args.figures / f"{stem}.pdf", title, labels, series, ylabel, cap)
         (args.tables / f"{stem}.tex").write_text(latex_table(rows, metric, ylabel))

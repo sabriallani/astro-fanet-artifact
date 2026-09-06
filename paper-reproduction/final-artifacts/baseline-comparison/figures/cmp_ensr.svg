@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="560" viewBox="0 0 1000 560">
+<rect width="100%" height="100%" fill="white"/>
+<text x="500.0" y="30" text-anchor="middle" font-family="Arial" font-size="20" font-weight="bold">Emergency non-suppression rate</text>
+<line x1="95" y1="465.0" x2="970" y2="465.0" stroke="#dddddd"/>
+<text x="85" y="470.0" text-anchor="end" font-family="Arial" font-size="12">0</text>
+<line x1="95" y1="386.0" x2="970" y2="386.0" stroke="#dddddd"/>
+<text x="85" y="391.0" text-anchor="end" font-family="Arial" font-size="12">20</text>
+<line x1="95" y1="307.0" x2="970" y2="307.0" stroke="#dddddd"/>
+<text x="85" y="312.0" text-anchor="end" font-family="Arial" font-size="12">40</text>
+<line x1="95" y1="228.0" x2="970" y2="228.0" stroke="#dddddd"/>
+<text x="85" y="233.0" text-anchor="end" font-family="Arial" font-size="12">60</text>
+<line x1="95" y1="149.0" x2="970" y2="149.0" stroke="#dddddd"/>
+<text x="85" y="154.0" text-anchor="end" font-family="Arial" font-size="12">80</text>
+<line x1="95" y1="70.0" x2="970" y2="70.0" stroke="#dddddd"/>
+<text x="85" y="75.0" text-anchor="end" font-family="Arial" font-size="12">100</text>
+<line x1="95" y1="70" x2="95" y2="465" stroke="#222"/>
+<line x1="95" y1="465" x2="970" y2="465" stroke="#222"/>
+<text x="204.4" y="489" text-anchor="middle" font-family="Arial" font-size="13">10 GM3D</text>
+<rect x="125.6" y="70.0" width="28.4" height="395.0" fill="#E45756"/>
+<rect x="157.1" y="70.0" width="28.4" height="395.0" fill="#4C78A8"/>
+<rect x="188.6" y="238.7" width="28.4" height="226.3" fill="#72B7B2"/>
+<line x1="202.8" y1="255.8" x2="202.8" y2="221.6" stroke="#222" stroke-width="1.6"/>
+<line x1="198.8" y1="255.8" x2="206.8" y2="255.8" stroke="#222" stroke-width="1.6"/>
+<line x1="198.8" y1="221.6" x2="206.8" y2="221.6" stroke="#222" stroke-width="1.6"/>
+<rect x="220.1" y="368.2" width="28.4" height="96.8" fill="#F58518"/>
+<line x1="234.3" y1="376.0" x2="234.3" y2="360.5" stroke="#222" stroke-width="1.6"/>
+<line x1="230.3" y1="376.0" x2="238.3" y2="376.0" stroke="#222" stroke-width="1.6"/>
+<line x1="230.3" y1="360.5" x2="238.3" y2="360.5" stroke="#222" stroke-width="1.6"/>
+<rect x="251.6" y="71.4" width="28.4" height="393.6" fill="#54A24B"/>
+<line x1="265.8" y1="72.3" x2="265.8" y2="70.4" stroke="#222" stroke-width="1.6"/>
+<line x1="261.8" y1="72.3" x2="269.8" y2="72.3" stroke="#222" stroke-width="1.6"/>
+<line x1="261.8" y1="70.4" x2="269.8" y2="70.4" stroke="#222" stroke-width="1.6"/>
+<text x="423.1" y="489" text-anchor="middle" font-family="Arial" font-size="13">20 GM3D</text>
+<rect x="344.4" y="70.0" width="28.4" height="395.0" fill="#E45756"/>
+<rect x="375.9" y="70.0" width="28.4" height="395.0" fill="#4C78A8"/>
+<rect x="407.4" y="230.2" width="28.4" height="234.8" fill="#72B7B2"/>
+<line x1="421.6" y1="236.1" x2="421.6" y2="224.3" stroke="#222" stroke-width="1.6"/>
+<line x1="417.6" y1="236.1" x2="425.6" y2="236.1" stroke="#222" stroke-width="1.6"/>
+<line x1="417.6" y1="224.3" x2="425.6" y2="224.3" stroke="#222" stroke-width="1.6"/>
+<rect x="438.9" y="401.7" width="28.4" height="63.3" fill="#F58518"/>
+<line x1="453.1" y1="406.2" x2="453.1" y2="397.1" stroke="#222" stroke-width="1.6"/>
+<line x1="449.1" y1="406.2" x2="457.1" y2="406.2" stroke="#222" stroke-width="1.6"/>
+<line x1="449.1" y1="397.1" x2="457.1" y2="397.1" stroke="#222" stroke-width="1.6"/>
+<rect x="470.4" y="70.2" width="28.4" height="394.8" fill="#54A24B"/>
+<line x1="484.6" y1="70.4" x2="484.6" y2="69.9" stroke="#222" stroke-width="1.6"/>
+<line x1="480.6" y1="70.4" x2="488.6" y2="70.4" stroke="#222" stroke-width="1.6"/>
+<line x1="480.6" y1="69.9" x2="488.6" y2="69.9" stroke="#222" stroke-width="1.6"/>
+<text x="641.9" y="489" text-anchor="middle" font-family="Arial" font-size="13">10 RPGM</text>
+<rect x="563.1" y="70.0" width="28.4" height="395.0" fill="#E45756"/>
+<rect x="594.6" y="70.0" width="28.4" height="395.0" fill="#4C78A8"/>
+<rect x="626.1" y="236.5" width="28.4" height="228.5" fill="#72B7B2"/>
+<line x1="640.3" y1="246.4" x2="640.3" y2="226.7" stroke="#222" stroke-width="1.6"/>
+<line x1="636.3" y1="246.4" x2="644.3" y2="246.4" stroke="#222" stroke-width="1.6"/>
+<line x1="636.3" y1="226.7" x2="644.3" y2="226.7" stroke="#222" stroke-width="1.6"/>
+<rect x="657.6" y="373.5" width="28.4" height="91.5" fill="#F58518"/>
+<line x1="671.8" y1="379.5" x2="671.8" y2="367.6" stroke="#222" stroke-width="1.6"/>
+<line x1="667.8" y1="379.5" x2="675.8" y2="379.5" stroke="#222" stroke-width="1.6"/>
+<line x1="667.8" y1="367.6" x2="675.8" y2="367.6" stroke="#222" stroke-width="1.6"/>
+<rect x="689.1" y="70.7" width="28.4" height="394.3" fill="#54A24B"/>
+<line x1="703.3" y1="71.5" x2="703.3" y2="69.9" stroke="#222" stroke-width="1.6"/>
+<line x1="699.3" y1="71.5" x2="707.3" y2="71.5" stroke="#222" stroke-width="1.6"/>
+<line x1="699.3" y1="69.9" x2="707.3" y2="69.9" stroke="#222" stroke-width="1.6"/>
+<text x="860.6" y="489" text-anchor="middle" font-family="Arial" font-size="13">20 RPGM</text>
+<rect x="781.9" y="70.0" width="28.4" height="395.0" fill="#E45756"/>
+<rect x="813.4" y="70.0" width="28.4" height="395.0" fill="#4C78A8"/>
+<rect x="844.9" y="232.0" width="28.4" height="233.0" fill="#72B7B2"/>
+<line x1="859.0" y1="239.4" x2="859.0" y2="224.7" stroke="#222" stroke-width="1.6"/>
+<line x1="855.0" y1="239.4" x2="863.0" y2="239.4" stroke="#222" stroke-width="1.6"/>
+<line x1="855.0" y1="224.7" x2="863.0" y2="224.7" stroke="#222" stroke-width="1.6"/>
+<rect x="876.4" y="401.3" width="28.4" height="63.7" fill="#F58518"/>
+<line x1="890.5" y1="406.0" x2="890.5" y2="396.6" stroke="#222" stroke-width="1.6"/>
+<line x1="886.5" y1="406.0" x2="894.5" y2="406.0" stroke="#222" stroke-width="1.6"/>
+<line x1="886.5" y1="396.6" x2="894.5" y2="396.6" stroke="#222" stroke-width="1.6"/>
+<rect x="907.9" y="70.3" width="28.4" height="394.7" fill="#54A24B"/>
+<line x1="922.0" y1="70.4" x2="922.0" y2="70.1" stroke="#222" stroke-width="1.6"/>
+<line x1="918.0" y1="70.4" x2="926.0" y2="70.4" stroke="#222" stroke-width="1.6"/>
+<line x1="918.0" y1="70.1" x2="926.0" y2="70.1" stroke="#222" stroke-width="1.6"/>
+<rect x="100" y="520" width="16" height="12" fill="#E45756"/>
+<text x="122" y="530" font-family="Arial" font-size="13">A3D-BSM</text>
+<rect x="250" y="520" width="16" height="12" fill="#4C78A8"/>
+<text x="272" y="530" font-family="Arial" font-size="13">SF</text>
+<rect x="400" y="520" width="16" height="12" fill="#72B7B2"/>
+<text x="422" y="530" font-family="Arial" font-size="13">PR</text>
+<rect x="550" y="520" width="16" height="12" fill="#F58518"/>
+<text x="572" y="530" font-family="Arial" font-size="13">CB</text>
+<rect x="700" y="520" width="16" height="12" fill="#54A24B"/>
+<text x="722" y="530" font-family="Arial" font-size="13">SBA</text>
+<text transform="translate(22 280.0) rotate(-90)" text-anchor="middle" font-family="Arial" font-size="14">ENSR (%)</text>
+</svg>
