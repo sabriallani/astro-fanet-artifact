@@ -65,7 +65,14 @@ AstroRoutingProtocol::AstroRoutingProtocol ()
     m_totalBroadcasts (0),
     m_suppressedBroadcasts (0),
     m_totalControlBytes (0),
-    m_totalDataBytes (0)
+    m_totalDataBytes (0),
+    m_dataReceptions (0),
+    m_duplicateReceptions (0),
+    m_uniquePacketsSeen (0),
+    m_emergencyForwarded (0),
+    m_emergencySuppressed (0),
+    m_relayedHopSum (0),
+    m_relayedPackets (0)
 {
   std::memset (m_queueSizes, 0, sizeof (m_queueSizes));
 
@@ -339,11 +346,20 @@ AstroRoutingProtocol::RouteInput (Ptr<const Packet> p, const Ipv4Header &header,
           && pCopy->PeekHeader (dataHdr)
           && dataHdr.GetOriginId () > 0)
         {
-          // Duplicate check for data broadcasts
+          // Duplicate check for data broadcasts.  Every reception is counted
+          // first, so the redundancy ratio RR can be derived from real traffic
+          // rather than asserted analytically.
           auto pktId = std::make_pair (dataHdr.GetOriginId (), dataHdr.GetSequenceNumber ());
+          m_dataReceptions++;
+          m_baseline.RecordReception (dataHdr.GetOriginId (), dataHdr.GetSequenceNumber ());
           if (m_seenPackets.find (pktId) != m_seenPackets.end ())
-            return true;  // Already seen, don't rebroadcast
+            {
+              // A duplicate carried no new information to this node.
+              m_duplicateReceptions++;
+              return true;  // Already seen, don't rebroadcast
+            }
           m_seenPackets.insert (pktId);
+          m_uniquePacketsSeen++;
 
           // Byzantine selective dropping (before rebroadcast)
           if (m_trustManager->IsByzantine ())
@@ -373,6 +389,48 @@ AstroRoutingProtocol::RouteInput (Ptr<const Packet> p, const Ipv4Header &header,
                        std::pow (myPos.z - bcastOrig.z, 2))
           };
 
+          // ---- Broadcast-suppression decision ----
+          // A classical baseline and A3D-BSM share this identical forwarding
+          // path.  Switching protocol therefore changes the decision rule and
+          // nothing else, which is what makes the comparison meaningful.
+          if (m_baseline.IsActive ())
+            {
+              if (BaselineUsesRad (m_baseline.GetMode ()))
+                {
+                  // CB and SBA defer: schedule the decision after a random
+                  // assessment delay so duplicates can be overheard.
+                  Simulator::Schedule (m_baseline.DrawRad (),
+                                       &AstroRoutingProtocol::BaselineDeferredDecision,
+                                       this, p->Copy (), header,
+                                       dataHdr.GetOriginId (),
+                                       dataHdr.GetSequenceNumber (),
+                                       dataHdr.GetTrafficClass (),
+                                       prevRelay);
+                  return true;
+                }
+
+              // SF and PR decide immediately.
+              if (!m_baseline.DecideImmediate ())
+                {
+                  m_suppressedBroadcasts++;
+                  if (dataHdr.GetTrafficClass () == EMERGENCY)
+                    {
+                      m_emergencySuppressed++;
+                    }
+                  return true;
+                }
+
+              m_totalBroadcasts++;
+              if (dataHdr.GetTrafficClass () == EMERGENCY)
+                {
+                  m_emergencyForwarded++;
+                }
+              m_relayedHopSum += dataHdr.GetHopCount ();
+              m_relayedPackets++;
+              BroadcastPacket (p->Copy (), header);
+              return true;
+            }
+
           AstroAction bcastDecision = m_a3dBsm->DecideRebroadcast (
             dataHdr.GetTrafficClass (), myPos, bcastOrig, prevRelay,
             m_currentEmbedding, density, mobGrad, bcastFeatures);
@@ -385,6 +443,10 @@ AstroRoutingProtocol::RouteInput (Ptr<const Packet> p, const Ipv4Header &header,
                                                dataHdr.GetHopCount ()))
             {
               m_suppressedBroadcasts++;
+              if (dataHdr.GetTrafficClass () == EMERGENCY)
+                {
+                  m_emergencySuppressed++;
+                }
               NS_LOG_DEBUG ("Node " << m_nodeId
                            << " suppressed non-progressing relay");
               return true;
@@ -393,6 +455,10 @@ AstroRoutingProtocol::RouteInput (Ptr<const Packet> p, const Ipv4Header &header,
           if (bcastDecision == ACTION_SUPPRESS)
             {
               m_suppressedBroadcasts++;
+              if (dataHdr.GetTrafficClass () == EMERGENCY)
+                {
+                  m_emergencySuppressed++;
+                }
               NS_LOG_DEBUG ("Node " << m_nodeId << " suppressed rebroadcast from "
                            << dataHdr.GetOriginId () << " seq " << dataHdr.GetSequenceNumber ());
               return true;
@@ -400,6 +466,12 @@ AstroRoutingProtocol::RouteInput (Ptr<const Packet> p, const Ipv4Header &header,
 
           // Rebroadcast: update header with current position as previous relay
           m_totalBroadcasts++;
+          if (dataHdr.GetTrafficClass () == EMERGENCY)
+            {
+              m_emergencyForwarded++;
+            }
+          m_relayedHopSum += dataHdr.GetHopCount ();
+          m_relayedPackets++;
           m_a3dBsm->RecordBroadcast (dataHdr.GetOriginId (), dataHdr.GetSequenceNumber (),
                                      bcastOrig, dataHdr.GetCreationTime ());
           // A FORWARD decision must produce an actual transmission.  Keep the
@@ -965,6 +1037,52 @@ AstroRoutingProtocol::ShouldUseTrustAwareFallback (TrafficClass trafficClass,
       return true;
     }
   return false;
+}
+
+void
+AstroRoutingProtocol::BaselineDeferredDecision (Ptr<Packet> packet, Ipv4Header header,
+                                                uint32_t originId,
+                                                uint32_t sequenceNumber,
+                                                TrafficClass trafficClass,
+                                                Vector3D previousRelayPos)
+{
+  // Counter-based and SBA both wait a random assessment delay before deciding.
+  // By now every duplicate overheard during the delay has been counted.
+  uint32_t additionalCover = 0;
+  if (m_baseline.GetMode () == BASELINE_SBA)
+    {
+      additionalCover = m_baseline.AdditionalCoverage (m_neighborTable, previousRelayPos);
+    }
+
+  bool rebroadcast = m_baseline.DecideAfterRad (originId, sequenceNumber, additionalCover);
+  m_baseline.ForgetPacket (originId, sequenceNumber);
+
+  if (!rebroadcast)
+    {
+      m_suppressedBroadcasts++;
+      if (trafficClass == EMERGENCY)
+        {
+          m_emergencySuppressed++;
+        }
+      return;
+    }
+
+  m_totalBroadcasts++;
+  if (trafficClass == EMERGENCY)
+    {
+      m_emergencyForwarded++;
+    }
+  m_relayedPackets++;
+
+  AstroDataHeader peek;
+  Ptr<Packet> inspect = packet->Copy ();
+  UdpHeader udpPeek;
+  if (inspect->RemoveHeader (udpPeek) && inspect->PeekHeader (peek))
+    {
+      m_relayedHopSum += peek.GetHopCount ();
+    }
+
+  BroadcastPacket (packet, header);
 }
 
 double

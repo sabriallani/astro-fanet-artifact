@@ -67,6 +67,48 @@ struct SimulationMetrics
   std::vector<double> aoiValues;   // Per-source AoI (ms)
   double totalEnergyConsumed = 0;
   double totalUsefulBits = 0;
+  // Suppression-quality aggregates (summed over all UAVs).
+  uint32_t dataReceptions = 0;
+  uint32_t duplicateReceptions = 0;
+  uint32_t uniquePacketsSeen = 0;
+  uint32_t emergencyForwarded = 0;
+  uint32_t emergencySuppressed = 0;
+  uint64_t relayedHopSum = 0;
+  uint32_t relayedPackets = 0;
+
+  // Redundancy ratio RR: share of data receptions that were duplicates, i.e.
+  // transmissions that delivered no new information to the receiver.
+  double GetRedundancyRatio () const
+  {
+    return dataReceptions > 0
+      ? 100.0 * duplicateReceptions / dataReceptions : 0.0;
+  }
+
+  // Saved-rebroadcast ratio SP: share of rebroadcast opportunities that the
+  // suppression policy declined.
+  double GetSavedRebroadcastRatio () const
+  {
+    uint32_t opportunities = totalBroadcasts + suppressedBroadcasts;
+    return opportunities > 0
+      ? 100.0 * suppressedBroadcasts / opportunities : 0.0;
+  }
+
+  // Mean broadcast path length BL: average hop count at relay time.
+  double GetBroadcastPathLength () const
+  {
+    return relayedPackets > 0
+      ? static_cast<double> (relayedHopSum) / relayedPackets : 0.0;
+  }
+
+  // Emergency non-suppression rate ENSR: share of emergency relay decisions
+  // that resulted in a forward.  The priority-preservation theorem predicts
+  // 100 % for conforming nodes.
+  double GetEmergencyNonSuppressionRate () const
+  {
+    uint32_t decisions = emergencyForwarded + emergencySuppressed;
+    return decisions > 0
+      ? 100.0 * emergencyForwarded / decisions : 0.0;
+  }
 
   double GetPDR () const
   {
@@ -307,7 +349,7 @@ main (int argc, char *argv[])
 {
   // ---------- Command-line parameters (matching Table 2) ----------
   uint32_t nUavs = 30;
-  std::string protocol = "astro";    // astro, aodv, olsr, epidemic, dqn
+  std::string protocol = "astro";    // astro, sf, pr, cb, sba, aodv, olsr, epidemic, dqn
   std::string mobility = "gm3d";    // gm3d, rpgm
   uint32_t seed = 1001;
   double simTime = 600.0;           // seconds
@@ -337,7 +379,7 @@ main (int argc, char *argv[])
 
   CommandLine cmd;
   cmd.AddValue ("nUavs", "Number of UAVs", nUavs);
-  cmd.AddValue ("protocol", "Routing protocol: astro|aodv|olsr|epidemic|dqn", protocol);
+  cmd.AddValue ("protocol", "Broadcast policy or routing protocol: astro|sf|pr|cb|sba|aodv|olsr|epidemic|dqn", protocol);
   cmd.AddValue ("mobility", "Mobility model: gm3d|rpgm", mobility);
   cmd.AddValue ("seed", "Random seed", seed);
   cmd.AddValue ("simTime", "Simulation duration (s)", simTime);
@@ -393,10 +435,15 @@ main (int argc, char *argv[])
       std::cerr << "Invalid nUavs: expected at least 2" << std::endl;
       return 1;
     }
-  if (protocol != "astro" && protocol != "aodv" && protocol != "olsr"
+  // `astro` plus the four executable broadcast-suppression baselines all run
+  // on the ASTRO stack and differ only in the suppression decision rule.
+  const bool isSuppressionPolicy =
+    (protocol == "astro" || protocol == "sf" || protocol == "pr"
+     || protocol == "cb" || protocol == "sba");
+  if (!isSuppressionPolicy && protocol != "aodv" && protocol != "olsr"
       && protocol != "epidemic" && protocol != "dqn")
     {
-      std::cerr << "Invalid protocol: " << protocol << std::endl;
+      std::cerr << "Unknown protocol: " << protocol << std::endl;
       return 1;
     }
   if (mobility != "gm3d" && mobility != "rpgm")
@@ -598,8 +645,10 @@ main (int argc, char *argv[])
   // ---------- Internet stack + routing ----------
   InternetStackHelper internet;
 
-  if (protocol == "astro")
+  if (isSuppressionPolicy)
     {
+      // A3D-BSM and the classical baselines share the same stack, beacons and
+      // forwarding path; only the suppression decision rule differs.
       AstroHelper astroRouting;
       astroRouting.Set ("BeaconInterval", TimeValue (MilliSeconds (200)));
       astroRouting.Set ("DecisionEpoch", TimeValue (MilliSeconds (200)));
@@ -638,8 +687,10 @@ main (int argc, char *argv[])
   Ipv4Address sinkAddr = interfaces.GetAddress (nUavs);  // Last node is sink
 
   // ---------- Configure ASTRO-specific settings ----------
-  if (protocol == "astro")
+  if (isSuppressionPolicy)
     {
+      astro::BroadcastBaseline baselineMode = astro::BaselineFromString (protocol);
+
       // Share SLM emulator across all agents (same embedding bank)
       Ptr<astro::SlmEmulator> sharedSlm = CreateObject<astro::SlmEmulator> ();
       sharedSlm->GenerateSyntheticEmbeddings (1000, 42);
@@ -653,6 +704,12 @@ main (int argc, char *argv[])
               astroProto->SetSinkAddress (sinkAddr);
               astroProto->SetSlmEmulator (sharedSlm);
               astroProto->SetEnergySource (energySources.Get (i));
+
+              // Select the suppression rule and bind a deterministic RNG
+              // stream so a given seed reproduces the same baseline draws.
+              astroProto->SetBaselineMode (baselineMode);
+              astroProto->SetBaselineCommRange (commRange);
+              astroProto->AssignBaselineStreams (static_cast<int64_t> (i) + 1);
 
               // Configure Byzantine agents
               if (byzFraction > 0 && i < static_cast<uint32_t>(nUavs * byzFraction))
@@ -787,8 +844,8 @@ main (int argc, char *argv[])
       g_metrics.totalEnergyConsumed += (initial - remaining);
     }
 
-  // ASTRO-specific metrics
-  if (protocol == "astro")
+  // Suppression-layer metrics (A3D-BSM and every baseline expose the same set)
+  if (isSuppressionPolicy)
     {
       for (uint32_t i = 0; i < nUavs; i++)
         {
@@ -799,6 +856,13 @@ main (int argc, char *argv[])
               g_metrics.totalControlBytes += astroProto->GetTotalControlBytes ();
               g_metrics.totalBroadcasts += astroProto->GetTotalBroadcasts ();
               g_metrics.suppressedBroadcasts += astroProto->GetSuppressedBroadcasts ();
+              g_metrics.dataReceptions += astroProto->GetDataReceptions ();
+              g_metrics.duplicateReceptions += astroProto->GetDuplicateReceptions ();
+              g_metrics.uniquePacketsSeen += astroProto->GetUniquePacketsSeen ();
+              g_metrics.emergencyForwarded += astroProto->GetEmergencyForwarded ();
+              g_metrics.emergencySuppressed += astroProto->GetEmergencySuppressed ();
+              g_metrics.relayedHopSum += astroProto->GetRelayedHopSum ();
+              g_metrics.relayedPackets += astroProto->GetRelayedPackets ();
             }
         }
     }
@@ -835,6 +899,10 @@ main (int argc, char *argv[])
   double ctrlOverhead = g_metrics.GetControlOverhead ();
   double energyPerBit = g_metrics.GetEnergyPerBit ();
   double brr = g_metrics.GetBRR ();
+  double redundancyRatio = g_metrics.GetRedundancyRatio ();
+  double savedRebroadcast = g_metrics.GetSavedRebroadcastRatio ();
+  double broadcastPathLen = g_metrics.GetBroadcastPathLength ();
+  double emergencyNsr = g_metrics.GetEmergencyNonSuppressionRate ();
 
   // Use FlowMonitor data if ASTRO metrics are incomplete
   if (fmDelayCount > 0 && g_metrics.delays.empty ())
@@ -869,6 +937,14 @@ main (int argc, char *argv[])
   std::cout << "BRR:                " << brr << std::endl;
   std::cout << "Broadcasts:         " << g_metrics.totalBroadcasts << std::endl;
   std::cout << "Suppressed:         " << g_metrics.suppressedBroadcasts << std::endl;
+  std::cout << "Data receptions:    " << g_metrics.dataReceptions << std::endl;
+  std::cout << "Duplicate rx:       " << g_metrics.duplicateReceptions << std::endl;
+  std::cout << "Redundancy RR (%):  " << redundancyRatio << std::endl;
+  std::cout << "Saved rebcast SP(%):" << savedRebroadcast << std::endl;
+  std::cout << "Path length BL:     " << broadcastPathLen << std::endl;
+  std::cout << "Emergency fwd:      " << g_metrics.emergencyForwarded << std::endl;
+  std::cout << "Emergency supp:     " << g_metrics.emergencySuppressed << std::endl;
+  std::cout << "Emergency ENSR (%): " << emergencyNsr << std::endl;
   std::cout << "Total energy (J):   " << g_metrics.totalEnergyConsumed << std::endl;
   std::cout << "Byz fraction:       " << byzFraction << std::endl;
   if (enableAnim)
@@ -888,7 +964,10 @@ main (int argc, char *argv[])
     {
       csv << "protocol,nUavs,mobility,seed,simTime,pdr,pdr_source,totalGenerated,"
           << "totalDelivered,flowMonitorDelivered,flowMonitorLost,avgDelay,throughput,avgAoI,"
-          << "ctrlOverhead,energyPerBit,brr,broadcasts,suppressed,totalEnergy,byzFraction"
+          << "ctrlOverhead,energyPerBit,brr,broadcasts,suppressed,totalEnergy,byzFraction,"
+          << "dataReceptions,duplicateReceptions,uniquePacketsSeen,redundancyRatio,"
+          << "savedRebroadcastRatio,broadcastPathLength,emergencyForwarded,"
+          << "emergencySuppressed,emergencyNonSuppressionRate"
           << std::endl;
       csv << protocol << "," << nUavs << "," << mobility << "," << seed << ","
           << simTime << "," << pdr << "," << pdrSource << ","
@@ -896,7 +975,12 @@ main (int argc, char *argv[])
           << fmDelivered << "," << fmLost << "," << avgDelay << "," << throughput << ","
           << avgAoI << "," << ctrlOverhead << "," << energyPerBit << "," << brr << ","
           << g_metrics.totalBroadcasts << "," << g_metrics.suppressedBroadcasts << ","
-          << g_metrics.totalEnergyConsumed << "," << byzFraction << std::endl;
+          << g_metrics.totalEnergyConsumed << "," << byzFraction << ","
+          << g_metrics.dataReceptions << "," << g_metrics.duplicateReceptions << ","
+          << g_metrics.uniquePacketsSeen << "," << redundancyRatio << ","
+          << savedRebroadcast << "," << broadcastPathLen << ","
+          << g_metrics.emergencyForwarded << "," << g_metrics.emergencySuppressed << ","
+          << emergencyNsr << std::endl;
       csv.close ();
       NS_LOG_INFO ("Results written to " << csvFile);
     }

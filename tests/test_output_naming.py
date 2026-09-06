@@ -32,7 +32,11 @@ class OutputNamingTests(unittest.TestCase):
     def test_simulation_validates_protocol_and_mobility(self):
         source = SCENARIO.read_text()
         validation = source[source.index("cmd.Parse (argc, argv);"):source.index("// Set random seed")]
-        self.assertIn('protocol != "astro"', validation)
+        # `astro` and the four executable suppression baselines are accepted
+        # through isSuppressionPolicy; unknown protocols are still rejected.
+        self.assertIn("isSuppressionPolicy", validation)
+        self.assertIn('protocol != "aodv"', validation)
+        self.assertIn("Unknown protocol: ", validation)
         self.assertIn('mobility != "gm3d"', validation)
 
 
