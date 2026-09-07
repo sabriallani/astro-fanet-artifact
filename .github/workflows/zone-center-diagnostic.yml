@@ -32,6 +32,7 @@ jobs:
         run: |
           set -euo pipefail
           root=ns-allinone-3.29/ns-3.29
+          (cd "$root" && ./waf --version)
           python - "$root" <<'PY'
           import sys
           from pathlib import Path
