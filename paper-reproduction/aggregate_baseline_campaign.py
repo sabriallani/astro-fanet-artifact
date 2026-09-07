@@ -5,7 +5,7 @@ Reads every per-run ``metrics.csv`` produced by ``astro-fanet-sim`` under the
 campaign results directory and emits:
 
 * a raw CSV with one row per successful run;
-* a summary CSV with one row per (protocol, nUavs, mobility) cell carrying the
+* a summary CSV with one row per (protocol, nUavs, mobility, byzFraction) cell carrying the
   mean, sample standard deviation, 95 % confidence half-width and the number of
   runs actually aggregated.
 
@@ -59,7 +59,7 @@ METRICS = [
     "rebroadcastSuppressions",
 ]
 
-KEY_FIELDS = ("protocol", "nUavs", "mobility")
+KEY_FIELDS = ("protocol", "nUavs", "mobility", "byzFraction")
 
 
 def t_critical(df: int) -> float:

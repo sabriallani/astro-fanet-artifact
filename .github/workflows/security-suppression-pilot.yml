@@ -1,0 +1,130 @@
+name: security and suppression pilot
+
+# This is a bounded pilot, not the manuscript campaign. It is activated only
+# by a commit explicitly marked [pilot], so evidence-only commits cannot launch
+# another simulation matrix.
+on:
+  push:
+    branches:
+      - experiment/baseline-comparison-v2
+
+permissions:
+  contents: write
+
+jobs:
+  pilot:
+    if: contains(github.event.head_commit.message, '[pilot]')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    steps:
+      - name: Checkout pilot source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run repository tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Configure Waf compatibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          root=ns-allinone-3.29/ns-3.29
+          (cd "$root" && ./waf --version)
+          python - "$root" <<'PY'
+          import sys
+          from pathlib import Path
+          root = Path(sys.argv[1])
+          replacements = 0
+          for path in root.glob('.waf*/waflib/Utils.py'):
+              text = path.read_text()
+              updated = text.replace("open(fname,m)as f", "open(fname,m.replace('U',''))as f")
+              if updated != text:
+                  path.write_text(updated)
+                  replacements += 1
+          print(root, "patched", replacements)
+          if replacements == 0:
+              raise SystemExit(f"No generated Waf Utils.py found in {root}")
+          PY
+
+      - name: Build simulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ns-allinone-3.29/ns-3.29
+          ./waf configure --disable-werror
+          ./waf build -j2
+
+      - name: Run bounded pilot matrix
+        shell: bash
+        run: |
+          set -u
+          root=ns-allinone-3.29/ns-3.29
+          output=results/security-suppression-pilot
+          mkdir -p "$root/$output"
+          : > "$root/$output/status.tsv"
+          failures=0
+          for protocol in astro pr cb sba; do
+            for mobility in gm3d rpgm; do
+              for byz in 0.0 0.2; do
+                label="${protocol}_n60_${mobility}_s3001_bz${byz}"
+                out_dir="$root/$output/$label"
+                mkdir -p "$out_dir"
+                if (
+                  cd "$root"
+                  ./waf --run "astro-fanet-sim --protocol=${protocol} --nUavs=60 --mobility=${mobility} --seed=3001 --simTime=30 --pktRate=1.0 --byzFraction=${byz} --outputDir=${output}/${label}"
+                ) > "$out_dir/${label}.console.log" 2>&1; then
+                  printf '%s\tOK\n' "$label" >> "$root/$output/status.tsv"
+                else
+                  printf '%s\tFAIL\n' "$label" >> "$root/$output/status.tsv"
+                  failures=$((failures + 1))
+                fi
+              done
+            done
+          done
+          echo "=== pilot status ==="
+          cat "$root/$output/status.tsv"
+          awk -F'\t' '$2=="OK"{ok++} $2=="FAIL"{fail++} END{print "OK="ok" FAIL="fail}' "$root/$output/status.tsv"
+          # Preserve all run states, but fail the job if any simulation failed.
+          test "$failures" -eq 0
+
+      - name: Aggregate pilot CSVs
+        if: always()
+        run: |
+          python paper-reproduction/aggregate_baseline_campaign.py \
+            --results ns-allinone-3.29/ns-3.29/results/security-suppression-pilot \
+            --output paper-reproduction/security_suppression_pilot_summary.csv \
+            --raw-output paper-reproduction/security_suppression_pilot_raw.csv
+
+      - name: Archive pilot evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          dest=paper-reproduction/pilot-artifacts/security-suppression
+          mkdir -p "$dest"
+          cp ns-allinone-3.29/ns-3.29/results/security-suppression-pilot/status.tsv "$dest/status.tsv"
+          cp paper-reproduction/security_suppression_pilot_summary.csv "$dest/summary.csv"
+          cp paper-reproduction/security_suppression_pilot_raw.csv "$dest/raw.csv"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$dest"
+          git commit -m "Archive security and suppression pilot evidence [skip ci]" || true
+          git push origin HEAD:pilot-security-evidence --force
+
+      - name: Upload pilot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-suppression-pilot
+          path: |
+            ns-allinone-3.29/ns-3.29/results/security-suppression-pilot
+            paper-reproduction/security_suppression_pilot_summary.csv
+            paper-reproduction/security_suppression_pilot_raw.csv
+            paper-reproduction/pilot-artifacts/security-suppression
+          if-no-files-found: warn
