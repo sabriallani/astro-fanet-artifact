@@ -1,0 +1,41 @@
+Waf: Entering directory `/home/runner/work/astro-fanet-artifact/astro-fanet-artifact/ns-allinone-3.29/ns-3.29/build'
+Waf: Leaving directory `/home/runner/work/astro-fanet-artifact/astro-fanet-artifact/ns-allinone-3.29/ns-3.29/build'
+Build commands will be stored in build/compile_commands.json
+'build' finished successfully (2.549s)
+
+======================================
+ASTRO-FANET Simulation Results
+======================================
+Protocol:           sf
+UAVs:               10
+Mobility:           rpgm
+Seed:               3003
+Duration:           30 s
+--------------------------------------
+PDR (%):            95.122
+PDR source:         app
+Generated (app):    287
+Delivered (app):    273
+Delivered (FM):     0
+Lost (FM):          0
+Avg Delay (ms):     0.179487
+Throughput (kbit/s):23.3813
+Avg AoI (ms):       951.072
+Ctrl Overhead (%):  75.0145
+Energy/bit (uJ):    353.748
+BRR:                4860
+Broadcasts:         4860
+Suppressed:         332
+Data receptions:    33078
+Duplicate rx:       30648
+Redundancy RR (%):  92.6537
+Saved rebcast SP(%):0
+Path length BL:     0.155967
+Emergency fwd:      270
+Emergency supp:     0
+Emergency ENSR (%): 100
+Byzantine drops:    0
+Total energy (J):   248.133
+Byz fraction:       0
+======================================
+
