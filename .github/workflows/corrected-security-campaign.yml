@@ -1,0 +1,123 @@
+name: corrected security campaign
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  security-campaign:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 350
+    steps:
+      - name: Checkout experimental branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run repository tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Configure Waf compatibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          root=ns-allinone-3.29/ns-3.29
+          (cd "$root" && ./waf --version)
+          python - "$root" <<'PY'
+          import sys
+          from pathlib import Path
+          root = Path(sys.argv[1])
+          replacements = 0
+          for path in root.glob('.waf*/waflib/Utils.py'):
+              text = path.read_text()
+              updated = text.replace("open(fname,m)as f", "open(fname,m.replace('U',''))as f")
+              if updated != text:
+                  path.write_text(updated)
+                  replacements += 1
+          print(root, "patched", replacements)
+          if replacements == 0:
+              raise SystemExit(f"No generated Waf Utils.py found in {root}")
+          PY
+
+      - name: Build simulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ns-allinone-3.29/ns-3.29
+          ./waf configure --disable-werror
+          ./waf build -j2
+
+      - name: Run Byzantine sensitivity matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          root=ns-allinone-3.29/ns-3.29
+          output=results/corrected-security-campaign
+          mkdir -p "$root/$output"
+          : > "$root/$output/status.tsv"
+          for protocol in astro sf pr cb sba; do
+            for byz_fraction in 0.1 0.2; do
+              for mobility in gm3d rpgm; do
+                for seed in 3001 3002 3003 3004 3005; do
+                  label="${protocol}_n20_${mobility}_s${seed}_bz${byz_fraction}"
+                  out_dir="$root/$output/$label"
+                  mkdir -p "$out_dir"
+                  if (
+                    cd "$root"
+                    ./waf --run "astro-fanet-sim --protocol=${protocol} --nUavs=20 --mobility=${mobility} --seed=${seed} --simTime=30 --pktRate=1.0 --byzFraction=${byz_fraction} --outputDir=${output}/${label}"
+                  ) > "$out_dir/${label}.console.log" 2>&1; then
+                    printf '%s\tOK\n' "$label" >> "$root/$output/status.tsv"
+                  else
+                    printf '%s\tFAIL\n' "$label" >> "$root/$output/status.tsv"
+                  fi
+                done
+              done
+            done
+          done
+          awk -F'\t' '$2=="OK"{ok++} $2=="FAIL"{fail++} END{print "OK="ok" FAIL="fail}' "$root/$output/status.tsv"
+
+      - name: Aggregate security evidence
+        if: always()
+        run: |
+          python paper-reproduction/aggregate_baseline_campaign.py \
+            --results ns-allinone-3.29/ns-3.29/results/corrected-security-campaign \
+            --output paper-reproduction/corrected_security_campaign_summary.csv \
+            --raw-output paper-reproduction/corrected_security_campaign_raw.csv
+
+      - name: Upload security evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: corrected-security-campaign
+          if-no-files-found: error
+          path: |
+            ns-allinone-3.29/ns-3.29/results/corrected-security-campaign/**
+            paper-reproduction/corrected_security_campaign_summary.csv
+            paper-reproduction/corrected_security_campaign_raw.csv
+
+      - name: Publish security evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p /tmp/security-publish
+          cp -r ns-allinone-3.29/ns-3.29/results/corrected-security-campaign /tmp/security-publish/ || true
+          cp paper-reproduction/corrected_security_campaign_summary.csv /tmp/security-publish/ || true
+          cp paper-reproduction/corrected_security_campaign_raw.csv /tmp/security-publish/ || true
+          git checkout --orphan corrected-security-campaign-publish
+          git rm -rf . >/dev/null 2>&1 || true
+          mkdir -p published-results
+          cp -r /tmp/security-publish/. published-results/ || true
+          printf '%s\n' "${GITHUB_SHA}" > published-results/source_commit.txt
+          git add published-results
+          git commit -m "Publish corrected security campaign [skip ci]"
+          git push origin HEAD:corrected-security-campaign --force
