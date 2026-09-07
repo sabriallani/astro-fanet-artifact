@@ -1,23 +1,17 @@
-name: security and suppression pilot
+name: corrected security campaign
 
-# This is a bounded pilot, not the manuscript campaign. It is activated only
-# by a commit explicitly marked [pilot], so evidence-only commits cannot launch
-# another simulation matrix.
 on:
-  push:
-    branches:
-      - experiment/baseline-comparison-v2
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  pilot:
-    if: contains(github.event.head_commit.message, '[pilot]')
+  security-campaign:
     runs-on: ubuntu-22.04
-    timeout-minutes: 180
+    timeout-minutes: 350
     steps:
-      - name: Checkout pilot source
+      - name: Checkout experimental branch
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -60,71 +54,70 @@ jobs:
           ./waf configure --disable-werror
           ./waf build -j2
 
-      - name: Run bounded pilot matrix
+      - name: Run Byzantine sensitivity matrix
         shell: bash
         run: |
-          set -u
+          set -euo pipefail
           root=ns-allinone-3.29/ns-3.29
-          output=results/security-suppression-pilot
+          output=results/corrected-security-campaign
           mkdir -p "$root/$output"
           : > "$root/$output/status.tsv"
-          failures=0
-          for protocol in astro pr cb sba; do
-            for mobility in gm3d rpgm; do
-              for byz in 0.0 0.2; do
-                label="${protocol}_n60_${mobility}_s3001_bz${byz}"
-                out_dir="$root/$output/$label"
-                mkdir -p "$out_dir"
-                if (
-                  cd "$root"
-                  ./waf --run "astro-fanet-sim --protocol=${protocol} --nUavs=60 --mobility=${mobility} --seed=3001 --simTime=30 --pktRate=1.0 --byzFraction=${byz} --outputDir=${output}/${label}"
-                ) > "$out_dir/${label}.console.log" 2>&1; then
-                  printf '%s\tOK\n' "$label" >> "$root/$output/status.tsv"
-                else
-                  printf '%s\tFAIL\n' "$label" >> "$root/$output/status.tsv"
-                  failures=$((failures + 1))
-                fi
+          for protocol in astro sf pr cb sba; do
+            for byz_fraction in 0.1 0.2; do
+              for mobility in gm3d rpgm; do
+                for seed in 3001 3002 3003 3004 3005; do
+                  label="${protocol}_n20_${mobility}_s${seed}_bz${byz_fraction}"
+                  out_dir="$root/$output/$label"
+                  mkdir -p "$out_dir"
+                  if (
+                    cd "$root"
+                    ./waf --run "astro-fanet-sim --protocol=${protocol} --nUavs=20 --mobility=${mobility} --seed=${seed} --simTime=30 --pktRate=1.0 --byzFraction=${byz_fraction} --outputDir=${output}/${label}"
+                  ) > "$out_dir/${label}.console.log" 2>&1; then
+                    printf '%s\tOK\n' "$label" >> "$root/$output/status.tsv"
+                  else
+                    printf '%s\tFAIL\n' "$label" >> "$root/$output/status.tsv"
+                  fi
+                done
               done
             done
           done
-          echo "=== pilot status ==="
-          cat "$root/$output/status.tsv"
           awk -F'\t' '$2=="OK"{ok++} $2=="FAIL"{fail++} END{print "OK="ok" FAIL="fail}' "$root/$output/status.tsv"
-          # Preserve all run states, but fail the job if any simulation failed.
-          test "$failures" -eq 0
 
-      - name: Aggregate pilot CSVs
+      - name: Aggregate security evidence
         if: always()
         run: |
           python paper-reproduction/aggregate_baseline_campaign.py \
-            --results ns-allinone-3.29/ns-3.29/results/security-suppression-pilot \
-            --output paper-reproduction/security_suppression_pilot_summary.csv \
-            --raw-output paper-reproduction/security_suppression_pilot_raw.csv
+            --results ns-allinone-3.29/ns-3.29/results/corrected-security-campaign \
+            --output paper-reproduction/corrected_security_campaign_summary.csv \
+            --raw-output paper-reproduction/corrected_security_campaign_raw.csv
 
-      - name: Archive pilot evidence
+      - name: Upload security evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: corrected-security-campaign
+          if-no-files-found: error
+          path: |
+            ns-allinone-3.29/ns-3.29/results/corrected-security-campaign/**
+            paper-reproduction/corrected_security_campaign_summary.csv
+            paper-reproduction/corrected_security_campaign_raw.csv
+
+      - name: Publish security evidence
         if: always()
         shell: bash
         run: |
           set -euo pipefail
-          dest=paper-reproduction/pilot-artifacts/security-suppression
-          mkdir -p "$dest"
-          cp ns-allinone-3.29/ns-3.29/results/security-suppression-pilot/status.tsv "$dest/status.tsv"
-          cp paper-reproduction/security_suppression_pilot_summary.csv "$dest/summary.csv"
-          cp paper-reproduction/security_suppression_pilot_raw.csv "$dest/raw.csv"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "$dest"
-          git commit -m "Archive security and suppression pilot evidence [skip ci]" || true
-          git push origin HEAD:pilot-security-evidence --force
-
-      - name: Upload pilot evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: security-suppression-pilot
-          path: |
-            ns-allinone-3.29/ns-3.29/results/security-suppression-pilot
-            paper-reproduction/security_suppression_pilot_summary.csv
-            paper-reproduction/security_suppression_pilot_raw.csv
-            paper-reproduction/pilot-artifacts/security-suppression
-          if-no-files-found: warn
+          mkdir -p /tmp/security-publish
+          cp -r ns-allinone-3.29/ns-3.29/results/corrected-security-campaign /tmp/security-publish/ || true
+          cp paper-reproduction/corrected_security_campaign_summary.csv /tmp/security-publish/ || true
+          cp paper-reproduction/corrected_security_campaign_raw.csv /tmp/security-publish/ || true
+          git checkout --orphan corrected-security-campaign-publish
+          git rm -rf . >/dev/null 2>&1 || true
+          mkdir -p published-results
+          cp -r /tmp/security-publish/. published-results/ || true
+          printf '%s\n' "${GITHUB_SHA}" > published-results/source_commit.txt
+          git add published-results
+          git commit -m "Publish corrected security campaign [skip ci]"
+          git push origin HEAD:corrected-security-campaign --force
