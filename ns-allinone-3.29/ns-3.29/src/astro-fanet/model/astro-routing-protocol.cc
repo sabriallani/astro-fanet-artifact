@@ -606,7 +606,8 @@ AstroRoutingProtocol::SendBeacon ()
   auto compressed = m_slmEmulator->Compress (m_currentEmbedding);
   beacon.SetCompressedEmbedding (compressed);
 
-  // Compute HMAC (Eq. 11)
+  // Compute the simulation authentication tag (protocol Eq. 11).
+  // The artifact does not implement a cryptographic HMAC.
   auto hmac = m_trustManager->ComputeHmac (beacon);
   beacon.SetHmac (hmac);
 
@@ -640,10 +641,10 @@ AstroRoutingProtocol::HandleBeacon (Ptr<Socket> socket)
       if (senderId == m_nodeId)
         continue;  // Ignore own beacons
 
-      // Verify HMAC-style authentication.
+      // Verify the deterministic simulation authentication tag.
       if (!m_trustManager->VerifyHmac (beacon))
         {
-          NS_LOG_WARN ("Node " << m_nodeId << ": HMAC verification failed for node " << senderId);
+          NS_LOG_WARN ("Node " << m_nodeId << ": authentication-tag verification failed for node " << senderId);
           continue;
         }
 

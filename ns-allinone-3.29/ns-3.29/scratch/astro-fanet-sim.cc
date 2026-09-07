@@ -65,6 +65,7 @@ struct SimulationMetrics
   uint32_t suppressedBroadcasts = 0;
   uint32_t rebroadcasts = 0;
   uint32_t rebroadcastSuppressions = 0;
+  uint32_t byzantineDrops = 0;
   std::vector<double> delays;      // Per-packet delay (ms)
   std::vector<double> aoiValues;   // Per-source AoI (ms)
   double totalEnergyConsumed = 0;
@@ -860,6 +861,12 @@ main (int argc, char *argv[])
               g_metrics.suppressedBroadcasts += astroProto->GetSuppressedBroadcasts ();
               g_metrics.rebroadcasts += astroProto->GetRebroadcasts ();
               g_metrics.rebroadcastSuppressions += astroProto->GetRebroadcastSuppressions ();
+              bool isByzantine = (byzFraction > 0
+                                  && i < static_cast<uint32_t> (nUavs * byzFraction));
+              if (isByzantine)
+                {
+                  g_metrics.byzantineDrops += astroProto->GetTotalPacketsDropped ();
+                }
               g_metrics.dataReceptions += astroProto->GetDataReceptions ();
               g_metrics.duplicateReceptions += astroProto->GetDuplicateReceptions ();
               g_metrics.uniquePacketsSeen += astroProto->GetUniquePacketsSeen ();
@@ -949,6 +956,7 @@ main (int argc, char *argv[])
   std::cout << "Emergency fwd:      " << g_metrics.emergencyForwarded << std::endl;
   std::cout << "Emergency supp:     " << g_metrics.emergencySuppressed << std::endl;
   std::cout << "Emergency ENSR (%): " << emergencyNsr << std::endl;
+  std::cout << "Byzantine drops:    " << g_metrics.byzantineDrops << std::endl;
   std::cout << "Total energy (J):   " << g_metrics.totalEnergyConsumed << std::endl;
   std::cout << "Byz fraction:       " << byzFraction << std::endl;
   if (enableAnim)
@@ -969,6 +977,7 @@ main (int argc, char *argv[])
       csv << "protocol,nUavs,mobility,seed,simTime,pdr,pdr_source,totalGenerated,"
           << "totalDelivered,flowMonitorDelivered,flowMonitorLost,avgDelay,throughput,avgAoI,"
           << "ctrlOverhead,energyPerBit,brr,broadcasts,suppressed,totalEnergy,byzFraction,"
+          << "byzantineDrops,"
           << "dataReceptions,duplicateReceptions,uniquePacketsSeen,rebroadcasts,"
           << "rebroadcastSuppressions,redundancyRatio,"
           << "savedRebroadcastRatio,broadcastPathLength,emergencyForwarded,"
@@ -981,6 +990,7 @@ main (int argc, char *argv[])
           << avgAoI << "," << ctrlOverhead << "," << energyPerBit << "," << brr << ","
           << g_metrics.totalBroadcasts << "," << g_metrics.suppressedBroadcasts << ","
           << g_metrics.totalEnergyConsumed << "," << byzFraction << ","
+          << g_metrics.byzantineDrops << ","
           << g_metrics.dataReceptions << "," << g_metrics.duplicateReceptions << ","
           << g_metrics.uniquePacketsSeen << "," << g_metrics.rebroadcasts << ","
           << g_metrics.rebroadcastSuppressions << "," << redundancyRatio << ","

@@ -27,7 +27,7 @@ TrustManager::TrustManager ()
     m_isByzantine (false),
     m_dropRate (0.0)
 {
-  // Default 128-bit HMAC key (pre-shared)
+  // Default simulation key material (pre-shared; not a cryptographic HMAC key)
   m_hmacKey.resize (16, 0xAB);
 }
 

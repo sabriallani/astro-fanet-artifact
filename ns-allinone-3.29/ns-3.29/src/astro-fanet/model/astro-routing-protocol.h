@@ -75,7 +75,7 @@ struct NeighborEntry
  * Key features:
  * - Periodic beaconing with intent/security fields
  * - A3D-BSM broadcast suppression
- * - HMAC-style authentication and trust scoring
+ * - Simulation authentication-tag abstraction and trust scoring
  * - Priority-aware packet queuing (4 traffic classes)
  * - Metrics collection (PDR, delay, throughput, BRR, energy, overhead)
  *

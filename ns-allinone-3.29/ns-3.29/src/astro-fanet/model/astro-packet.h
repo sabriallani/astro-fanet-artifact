@@ -60,12 +60,13 @@ enum MissionRole : uint8_t
 
 // --------------------------------------------------------------------------
 // Intent vector dimension used by the executable scaffold. The paper-level
-// coordination overhead is 16 bytes of quantized intent plus a 32-byte HMAC.
+// coordination overhead is 16 bytes of quantized intent plus a 32-byte
+// simulation authentication tag. The artifact does not implement cryptography.
 // --------------------------------------------------------------------------
 static const uint32_t INTENT_DIM = 16;
 static const uint32_t EMBEDDING_DIM = 256;  // d_z from the paper
 static const uint32_t COMPRESSED_EMBED_DIM = 16;  // legacy scaffold context field
-static const uint32_t HMAC_SIZE = 32;  // SHA-256 HMAC
+static const uint32_t HMAC_SIZE = 32;  // fixed-size simulation tag field
 static const uint32_t INTENT_VECTOR_BYTES = 16;
 static const uint32_t INTENT_OVERHEAD = INTENT_VECTOR_BYTES + HMAC_SIZE;  // 48 bytes
 
@@ -129,7 +130,7 @@ public:
   void SetCompressedEmbedding (const std::vector<float> &emb);
   std::vector<float> GetCompressedEmbedding (void) const;
 
-  // HMAC (simplified: 32-byte hash)
+  // Fixed-size authentication tag (deterministic simulation hash)
   void SetHmac (const std::array<uint8_t, HMAC_SIZE> &hmac) { m_hmac = hmac; }
   std::array<uint8_t, HMAC_SIZE> GetHmac (void) const { return m_hmac; }
 

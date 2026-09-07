@@ -49,6 +49,7 @@ METRICS = [
     "broadcasts",
     "suppressed",
     "totalEnergy",
+    "byzantineDrops",
     "redundancyRatio",
     "savedRebroadcastRatio",
     "broadcastPathLength",

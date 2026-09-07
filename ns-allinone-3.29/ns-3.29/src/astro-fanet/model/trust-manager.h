@@ -3,7 +3,7 @@
  * ASTRO-FANET: Behavioral Trust Scoring (Layer 4)
  * Implements Section 3.4 (Secure and Resilient Coordination Signaling)
  *
- * - HMAC verification of intent vectors (Eq. 11)
+ * - Simulation-only authentication-tag verification of intent vectors (Eq. 11)
  * - Exponential-moving-average trust scoring (Eq. 12)
  * - Consistency checking between declared intent and observed behavior (Eq. 13)
  */
@@ -43,7 +43,7 @@ struct NeighborTrustState
 };
 
 /**
- * \brief Trust manager implementing HMAC verification and behavioral trust scoring
+ * \brief Trust manager implementing a simulation authentication tag and behavioral trust scoring
  */
 class TrustManager : public Object
 {
@@ -54,19 +54,20 @@ public:
   virtual ~TrustManager ();
 
   /**
-   * Set the pre-shared HMAC key (K in Eq. 11).
-   * In simulation, all honest agents share the same key.
+   * Set the pre-shared simulation key material (K in Eq. 11).
+   * The current artifact uses a deterministic non-cryptographic tag; it does
+   * not claim cryptographic HMAC security.
    */
   void SetHmacKey (const std::vector<uint8_t> &key);
 
   /**
-   * Compute HMAC for an intent vector (Eq. 11).
-   * auth_i(t) = HMAC_K(iota_i(t) || t || id_i)
+   * Compute the deterministic simulation authentication tag for an intent
+   * vector (protocol Eq. 11). This is not a cryptographic HMAC.
    */
   std::array<uint8_t, HMAC_SIZE> ComputeHmac (const AstroBeaconHeader &beacon) const;
 
   /**
-   * Verify HMAC of a received beacon. Returns true if valid.
+   * Verify the deterministic simulation tag of a received beacon.
    */
   bool VerifyHmac (const AstroBeaconHeader &beacon) const;
 
@@ -131,7 +132,7 @@ private:
   bool m_isByzantine;
   double m_dropRate;
 
-  // Simple hash function for HMAC simulation (not cryptographic)
+  // Simple hash function for authentication-tag simulation (not cryptographic)
   uint32_t SimpleHash (const uint8_t *data, uint32_t len, uint32_t seed) const;
 };
 
