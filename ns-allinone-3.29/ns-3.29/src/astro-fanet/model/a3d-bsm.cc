@@ -236,11 +236,15 @@ A3dBsm::DecideRebroadcast (TrafficClass trafficClass,
       return ACTION_BROADCAST;
     }
 
-  // Compute suppression zone using the fixed offline-calibrated context head.
+  // The suppression region is local to the relay that just transmitted the
+  // packet.  On the first hop prevRelayPos equals originPos, preserving the
+  // deliberate early-hop diversity rule; on later hops this avoids testing a
+  // relay against a stale zone centered at the original source.
+  Vector3D zoneCenter = prevRelayPos;
   Vector3D semiAxes = ComputeSuppressionZone (localDensity, mobilityGradient, broadcastFeatures);
 
-  // Rule 2: If outside suppression zone, broadcast
-  if (!IsInsideZone (currentPos, originPos, semiAxes))
+  // Rule 2: If outside the previous-relay suppression zone, broadcast
+  if (!IsInsideZone (currentPos, zoneCenter, semiAxes))
     {
       NS_LOG_DEBUG ("Outside suppression zone: broadcast");
       return ACTION_BROADCAST;
