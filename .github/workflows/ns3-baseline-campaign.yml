@@ -13,7 +13,7 @@ permissions:
   contents: write
 
 jobs:
-  baseline-campaign:
+  corrected-baseline-campaign:
     runs-on: ubuntu-22.04
     timeout-minutes: 350
     steps:
@@ -65,7 +65,7 @@ jobs:
         run: |
           set -euo pipefail
           root=ns-allinone-3.29/ns-3.29
-          output=results/baseline-campaign
+          output=results/corrected-baseline-campaign
           mkdir -p "$root/$output"
           : > "$root/$output/status.tsv"
           for protocol in astro sf pr cb sba; do
@@ -95,9 +95,9 @@ jobs:
         if: always()
         run: |
           python paper-reproduction/aggregate_baseline_campaign.py \
-            --results ns-allinone-3.29/ns-3.29/results/baseline-campaign \
-            --output paper-reproduction/baseline_campaign_summary.csv \
-            --raw-output paper-reproduction/baseline_campaign_raw.csv
+            --results ns-allinone-3.29/ns-3.29/results/corrected-baseline-campaign \
+            --output paper-reproduction/corrected_baseline_campaign_summary.csv \
+            --raw-output paper-reproduction/corrected_baseline_campaign_raw.csv
 
       - name: Upload campaign evidence
         if: always()
@@ -106,9 +106,9 @@ jobs:
           name: baseline-comparison-campaign
           if-no-files-found: error
           path: |
-            ns-allinone-3.29/ns-3.29/results/baseline-campaign/**
-            paper-reproduction/baseline_campaign_summary.csv
-            paper-reproduction/baseline_campaign_raw.csv
+            ns-allinone-3.29/ns-3.29/results/corrected-baseline-campaign/**
+            paper-reproduction/corrected_baseline_campaign_summary.csv
+            paper-reproduction/corrected_baseline_campaign_raw.csv
 
       - name: Publish campaign evidence
         if: always()
@@ -120,14 +120,14 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           mkdir -p /tmp/baseline-publish
-          cp -r ns-allinone-3.29/ns-3.29/results/baseline-campaign /tmp/baseline-publish/ || true
-          cp paper-reproduction/baseline_campaign_summary.csv /tmp/baseline-publish/ || true
-          cp paper-reproduction/baseline_campaign_raw.csv /tmp/baseline-publish/ || true
-          git checkout --orphan baseline-campaign-publish
+          cp -r ns-allinone-3.29/ns-3.29/results/corrected-baseline-campaign /tmp/baseline-publish/ || true
+          cp paper-reproduction/corrected_baseline_campaign_summary.csv /tmp/baseline-publish/ || true
+          cp paper-reproduction/corrected_baseline_campaign_raw.csv /tmp/baseline-publish/ || true
+          git checkout --orphan corrected-baseline-campaign-publish
           git rm -rf . >/dev/null 2>&1 || true
           mkdir -p published-results
           cp -r /tmp/baseline-publish/. published-results/ || true
           printf '%s\n' "${GITHUB_SHA}" > published-results/source_commit.txt
           git add published-results
           git commit -m "Publish baseline comparison campaign [skip ci]"
-          git push origin HEAD:baseline-campaign --force
+          git push origin HEAD:corrected-baseline-campaign --force
