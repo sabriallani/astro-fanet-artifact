@@ -206,13 +206,15 @@ public:
   }
 
   AstroTrafficGenerator ()
-    : m_socket (0), m_running (false), m_seqNo (0) {}
+    : m_socket (0), m_running (false), m_seqNo (0), m_broadcastAllTraffic (false) {}
 
-  void Setup (Ipv4Address sinkAddr, uint16_t port, double pktRate)
+  void Setup (Ipv4Address sinkAddr, uint16_t port, double pktRate,
+              bool broadcastAllTraffic)
   {
     m_sinkAddr = sinkAddr;
     m_port = port;
     m_pktRate = pktRate;
+    m_broadcastAllTraffic = broadcastAllTraffic;
   }
 
 private:
@@ -255,7 +257,7 @@ private:
     dataHdr.SetSequenceNumber (m_seqNo++);
     dataHdr.SetCreationTime (Simulator::Now ());
     dataHdr.SetHopCount (0);
-    dataHdr.SetIsBroadcast (tc == astro::EMERGENCY);
+    dataHdr.SetIsBroadcast (m_broadcastAllTraffic);
 
     // Set broadcast origin to current position
     Ptr<MobilityModel> mob = GetNode ()->GetObject<MobilityModel> ();
@@ -268,8 +270,9 @@ private:
 
     pkt->AddHeader (dataHdr);
 
-    // Emergency traffic exercises the A3D-BSM broadcast path; other traffic
-    // remains unicast to the sink for a separate reference path.
+    // Suppression-policy experiments broadcast every traffic class so that
+    // non-Emergency packets create genuine suppression opportunities.  The
+    // caller keeps unicast behavior for protocols outside this common stack.
     Ipv4Address destination = dataHdr.GetIsBroadcast ()
       ? Ipv4Address::GetBroadcast ()
       : m_sinkAddr;
@@ -291,6 +294,7 @@ private:
   double m_pktRate;
   bool m_running;
   uint32_t m_seqNo;
+  bool m_broadcastAllTraffic;
 };
 
 // ========================================================================
@@ -365,6 +369,7 @@ main (int argc, char *argv[])
   double areaZ = 200.0;             // altitude range (50-250m)
   double gmAlpha = 0.75;            // Gauss-Markov tuning parameter
   double byzFraction = 0.0;         // Fraction of Byzantine agents
+  bool broadcastAllTraffic = true;  // Broadcast all classes for suppression policies
   std::string outputDir = "results";
   bool videoMode = false;
   bool enableAnim = false;
@@ -392,6 +397,7 @@ main (int argc, char *argv[])
   cmd.AddValue ("maxSpeed", "Maximum UAV speed (m/s)", maxSpeed);
   cmd.AddValue ("gmAlpha", "Gauss-Markov alpha parameter", gmAlpha);
   cmd.AddValue ("byzFraction", "Fraction of Byzantine agents [0,1)", byzFraction);
+  cmd.AddValue ("broadcastAllTraffic", "Broadcast all traffic classes on suppression-policy stack", broadcastAllTraffic);
   cmd.AddValue ("outputDir", "Output directory for results", outputDir);
   cmd.AddValue ("videoMode", "Enable a cleaner NetAnim preset for recording/demo videos", videoMode);
   cmd.AddValue ("enableAnim", "Enable NetAnim XML export", enableAnim);
@@ -738,7 +744,8 @@ main (int argc, char *argv[])
   for (uint32_t i = 0; i < nUavs; i++)
     {
       Ptr<AstroTrafficGenerator> trafficGen = CreateObject<AstroTrafficGenerator> ();
-      trafficGen->Setup (sinkAddr, dataPort, pktRate);
+      trafficGen->Setup (sinkAddr, dataPort, pktRate,
+                         isSuppressionPolicy && broadcastAllTraffic);
       uavNodes.Get (i)->AddApplication (trafficGen);
       trafficGen->SetStartTime (Seconds (2.0));  // Start after routing converges
       trafficGen->SetStopTime (Seconds (simTime - 1.0));
