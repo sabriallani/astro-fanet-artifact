@@ -1,0 +1,164 @@
+name: counter semantics pilot
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  counter-semantics-pilot:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout requested revision
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run source-level tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Configure Waf compatibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          root=ns-allinone-3.29/ns-3.29
+          (cd "$root" && ./waf --version)
+          python - "$root" <<'PY'
+          import sys
+          from pathlib import Path
+          root = Path(sys.argv[1])
+          replacements = 0
+          for path in root.glob('.waf*/waflib/Utils.py'):
+              text = path.read_text()
+              updated = text.replace("open(fname,m)as f", "open(fname,m.replace('U',''))as f")
+              if updated != text:
+                  path.write_text(updated)
+                  replacements += 1
+          print(root, "patched", replacements)
+          if replacements == 0:
+              raise SystemExit(f"No generated Waf Utils.py found in {root}")
+          PY
+
+      - name: Build simulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ns-allinone-3.29/ns-3.29
+          ./waf configure --disable-werror
+          ./waf build -j2
+
+      - name: Run bounded counter matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          root=ns-allinone-3.29/ns-3.29
+          output=results/counter-semantics-pilot
+          mkdir -p "$root/$output"
+          : > "$root/$output/status.tsv"
+          failures=0
+          for protocol in astro sf cb; do
+            for mobility in gm3d rpgm; do
+              for seed in 3001 3002; do
+                label="${protocol}_n20_${mobility}_s${seed}"
+                out_dir="$root/$output/$label"
+                mkdir -p "$out_dir"
+                python - "$out_dir/run-manifest.json" "$protocol" "$mobility" "$seed" "$label" "$output" <<'PY'
+                import json
+                import os
+                import sys
+
+                manifest_path, protocol, mobility, seed, label, output = sys.argv[1:]
+                run = (
+                    f"astro-fanet-sim --protocol={protocol} --nUavs=20 "
+                    f"--mobility={mobility} --seed={seed} --simTime=30 "
+                    "--pktRate=1.0 --byzFraction=0.0 --broadcastAllTraffic=true "
+                    f"--outputDir={output}/{label}"
+                )
+                with open(manifest_path, "w", encoding="utf-8") as handle:
+                    json.dump(
+                        {
+                            "schemaVersion": 1,
+                            "sourceCommit": os.environ["GITHUB_SHA"],
+                            "label": label,
+                            "protocol": protocol,
+                            "nUavs": 20,
+                            "mobility": mobility,
+                            "seed": int(seed),
+                            "simTimeSeconds": 30,
+                            "packetRate": 1.0,
+                            "byzFraction": 0.0,
+                            "broadcastAllTraffic": True,
+                            "workingDirectory": "ns-allinone-3.29/ns-3.29",
+                            "outputDirectory": f"{output}/{label}",
+                            "command": ["./waf", "--run", run],
+                        },
+                        handle,
+                        indent=2,
+                        sort_keys=True,
+                    )
+                    handle.write("\n")
+                PY
+                if (
+                  cd "$root"
+                  ./waf --run "astro-fanet-sim --protocol=${protocol} --nUavs=20 --mobility=${mobility} --seed=${seed} --simTime=30 --pktRate=1.0 --byzFraction=0.0 --broadcastAllTraffic=true --outputDir=${output}/${label}"
+                ) > "$out_dir/${label}.console.log" 2>&1; then
+                  printf '%s\tOK\n' "$label" >> "$root/$output/status.tsv"
+                else
+                  printf '%s\tFAIL\n' "$label" >> "$root/$output/status.tsv"
+                  failures=$((failures + 1))
+                fi
+              done
+            done
+          done
+          awk -F'\t' '$2=="OK"{ok++} $2=="FAIL"{fail++} END{print "OK="ok" FAIL="fail}' "$root/$output/status.tsv"
+          test "$failures" -eq 0
+
+      - name: Verify physical broadcast counter invariant
+        shell: bash
+        run: |
+          python - <<'PY'
+          import csv
+          from pathlib import Path
+
+          root = Path("ns-allinone-3.29/ns-3.29/results/counter-semantics-pilot")
+          rows = []
+          for path in sorted(root.rglob("*.csv")):
+              rows.extend(csv.DictReader(path.open()))
+          if len(rows) != 12:
+              raise SystemExit(f"expected 12 metrics rows, found {len(rows)}")
+          for row in rows:
+              broadcasts = int(float(row["broadcasts"]))
+              rebroadcasts = int(float(row["rebroadcasts"]))
+              if broadcasts != rebroadcasts:
+                  raise SystemExit(
+                      f"counter invariant failed for {row['protocol']} seed={row['seed']}: "
+                      f"broadcasts={broadcasts}, rebroadcasts={rebroadcasts}"
+                  )
+          print(f"validated broadcasts == rebroadcasts for {len(rows)} compiled runs")
+          PY
+
+      - name: Aggregate pilot evidence
+        if: always()
+        run: |
+          python paper-reproduction/aggregate_baseline_campaign.py \
+            --results ns-allinone-3.29/ns-3.29/results/counter-semantics-pilot \
+            --output paper-reproduction/counter_semantics_pilot_summary.csv \
+            --raw-output paper-reproduction/counter_semantics_pilot_raw.csv
+
+      - name: Upload isolated pilot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: counter-semantics-pilot-${{ github.sha }}
+          if-no-files-found: error
+          path: |
+            ns-allinone-3.29/ns-3.29/results/counter-semantics-pilot/**
+            paper-reproduction/counter_semantics_pilot_summary.csv
+            paper-reproduction/counter_semantics_pilot_raw.csv
