@@ -423,7 +423,6 @@ AstroRoutingProtocol::RouteInput (Ptr<const Packet> p, const Ipv4Header &header,
                   return true;
                 }
 
-              m_totalBroadcasts++;
               m_rebroadcasts++;
               if (dataHdr.GetTrafficClass () == EMERGENCY)
                 {
@@ -453,7 +452,6 @@ AstroRoutingProtocol::RouteInput (Ptr<const Packet> p, const Ipv4Header &header,
             }
 
           // Rebroadcast: update header with current position as previous relay
-          m_totalBroadcasts++;
           m_rebroadcasts++;
           if (dataHdr.GetTrafficClass () == EMERGENCY)
             {
@@ -1027,7 +1025,6 @@ AstroRoutingProtocol::BaselineDeferredDecision (Ptr<Packet> packet, Ipv4Header h
       return;
     }
 
-  m_totalBroadcasts++;
   m_rebroadcasts++;
   if (trafficClass == EMERGENCY)
     {
