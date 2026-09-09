@@ -12,6 +12,9 @@ class CounterSemanticsPilotWorkflowTests(unittest.TestCase):
     def test_pilot_is_manual_bounded_and_uses_unique_evidence_paths(self):
         source = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("workflow_dispatch:", source)
+        self.assertIn("push:", source)
+        self.assertIn("experiment/a3d-dpms-trajectory-pilot", source)
+        self.assertIn(".github/workflows/counter-semantics-pilot.yml", source)
         self.assertIn("counter-semantics-pilot", source)
         self.assertIn("results/counter-semantics-pilot", source)
         self.assertIn("for protocol in astro sf cb", source)

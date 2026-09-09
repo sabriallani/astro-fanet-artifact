@@ -2,6 +2,11 @@ name: counter semantics pilot
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - experiment/a3d-dpms-trajectory-pilot
+    paths:
+      - .github/workflows/counter-semantics-pilot.yml
 
 permissions:
   contents: read
