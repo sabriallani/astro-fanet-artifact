@@ -22,6 +22,8 @@ class CounterSemanticsPilotWorkflowTests(unittest.TestCase):
         self.assertIn("for seed in 3001 3002", source)
         self.assertIn("broadcasts != rebroadcasts", source)
         self.assertIn("run-manifest.json", source)
+        manifest_heredoc = source[source.index("run-manifest.json"):]
+        self.assertIn("\n          import json\n", manifest_heredoc)
         self.assertIn("GITHUB_SHA", source)
         self.assertIn("--broadcastAllTraffic=true", source)
         self.assertIn("actions/upload-artifact@v4", source)

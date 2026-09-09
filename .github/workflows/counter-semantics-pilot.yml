@@ -75,41 +75,41 @@ jobs:
                 out_dir="$root/$output/$label"
                 mkdir -p "$out_dir"
                 python - "$out_dir/run-manifest.json" "$protocol" "$mobility" "$seed" "$label" "$output" <<'PY'
-                import json
-                import os
-                import sys
+          import json
+          import os
+          import sys
 
-                manifest_path, protocol, mobility, seed, label, output = sys.argv[1:]
-                run = (
-                    f"astro-fanet-sim --protocol={protocol} --nUavs=20 "
-                    f"--mobility={mobility} --seed={seed} --simTime=30 "
-                    "--pktRate=1.0 --byzFraction=0.0 --broadcastAllTraffic=true "
-                    f"--outputDir={output}/{label}"
-                )
-                with open(manifest_path, "w", encoding="utf-8") as handle:
-                    json.dump(
-                        {
-                            "schemaVersion": 1,
-                            "sourceCommit": os.environ["GITHUB_SHA"],
-                            "label": label,
-                            "protocol": protocol,
-                            "nUavs": 20,
-                            "mobility": mobility,
-                            "seed": int(seed),
-                            "simTimeSeconds": 30,
-                            "packetRate": 1.0,
-                            "byzFraction": 0.0,
-                            "broadcastAllTraffic": True,
-                            "workingDirectory": "ns-allinone-3.29/ns-3.29",
-                            "outputDirectory": f"{output}/{label}",
-                            "command": ["./waf", "--run", run],
-                        },
-                        handle,
-                        indent=2,
-                        sort_keys=True,
-                    )
-                    handle.write("\n")
-                PY
+          manifest_path, protocol, mobility, seed, label, output = sys.argv[1:]
+          run = (
+              f"astro-fanet-sim --protocol={protocol} --nUavs=20 "
+              f"--mobility={mobility} --seed={seed} --simTime=30 "
+              "--pktRate=1.0 --byzFraction=0.0 --broadcastAllTraffic=true "
+              f"--outputDir={output}/{label}"
+          )
+          with open(manifest_path, "w", encoding="utf-8") as handle:
+              json.dump(
+                  {
+                      "schemaVersion": 1,
+                      "sourceCommit": os.environ["GITHUB_SHA"],
+                      "label": label,
+                      "protocol": protocol,
+                      "nUavs": 20,
+                      "mobility": mobility,
+                      "seed": int(seed),
+                      "simTimeSeconds": 30,
+                      "packetRate": 1.0,
+                      "byzFraction": 0.0,
+                      "broadcastAllTraffic": True,
+                      "workingDirectory": "ns-allinone-3.29/ns-3.29",
+                      "outputDirectory": f"{output}/{label}",
+                      "command": ["./waf", "--run", run],
+                  },
+                  handle,
+                  indent=2,
+                  sort_keys=True,
+              )
+              handle.write("\n")
+          PY
                 if (
                   cd "$root"
                   ./waf --run "astro-fanet-sim --protocol=${protocol} --nUavs=20 --mobility=${mobility} --seed=${seed} --simTime=30 --pktRate=1.0 --byzFraction=0.0 --broadcastAllTraffic=true --outputDir=${output}/${label}"
